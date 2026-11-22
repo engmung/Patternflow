@@ -520,6 +520,7 @@ void setup() {
   // so joining Wi-Fi never waits on the first frame; the HTTP server itself
   // is not serviced until loop() has registered every route.
   PatternflowNetTask::begin();
+  PFCanvas::beginHandoff();
   beginPatternLoader(); // one reusable stack, before any module fragments the heap
 
   // Wireless-update progress. The upload handler runs on the network core
@@ -1618,8 +1619,10 @@ void loop() {
     if (d != 0) {
       int b = constrain((int)currentBrightness + d * 5, 5, 255);
       if (b != (int)currentBrightness) {
+        PFCanvas::settle();
         currentBrightness = (uint8_t)b;
         dma_display->setBrightness8(currentBrightness);
+        appliedBrightness = currentBrightness;
         brightnessIdleAtMs = now;
         brightnessDirty = true;
       }
@@ -1804,6 +1807,7 @@ void loop() {
       if (currentPatternIdx != activePatternIdx) activateWithSnapshot(currentPatternIdx);
       selectPending = false;
       currentMode = MODE_RUNNING;
+      PFCanvas::settle();
       dma_display->setRotation(0);
       Serial.printf(">>> RUNNING MODE: %s\n", patterns[currentPatternIdx].name);
     }
@@ -1873,8 +1877,10 @@ void loop() {
     Serial.printf(">>> HTTP pattern → %s\n", patterns[currentPatternIdx].name);
   }
   bool frameDrawn = true;
+  bool frameHandedOff = false;
   if (oscInfoShowing) {
     if (netInfoDirty || (now - netInfoDrawnAtMs) >= NET_INFO_REDRAW_MS) {
+      PFCanvas::settle();
       drawNetworkInfo();
       netInfoDrawnAtMs = now;
       netInfoDirty = false;
@@ -1887,6 +1893,7 @@ void loop() {
     // Redraw on activity or at the slow poll (so highlights also fade out);
     // same anti-flicker scheme as the NETWORK screen above.
     if (knobMapDirty || (now - knobMapDrawnAtMs) >= NET_INFO_REDRAW_MS) {
+      PFCanvas::settle();
       drawKnobMap();
       knobMapDrawnAtMs = now;
       knobMapDirty = false;
@@ -1902,6 +1909,7 @@ void loop() {
     // pattern is running: the DONE / REBOOTING card shows for the ~1.2 s
     // before restart instead of snapping back to the pattern.
     if (updateDirty || (now - updateDrawnAtMs) >= NET_INFO_REDRAW_MS) {
+      PFCanvas::settle();
       drawUpdateScreen(PatternflowWebUpdate::isUploading() ? uploadPctShown : -1);
       updateDrawnAtMs = now;
       updateDirty = false;
@@ -1914,6 +1922,7 @@ void loop() {
     // the tuner dismisses the card. Runs even while the console has the module
     // evicted — the card is compiled in and needs none of the module's RAM.
     // K1/K2 still work on the card for whoever is standing at the panel.
+    PFCanvas::settle();
     pausedDirty = true;
     CalibPattern::update(dt, input);
     CalibPattern::draw();
@@ -1927,6 +1936,7 @@ void loop() {
     static int previewTarget = -1;
     static uint32_t previewAtMs = 0;
     if (previewTarget != loadTargetIdx || !canvasShowsThumb || now - previewAtMs >= 64) {
+      PFCanvas::settle();
       previewTarget = loadTargetIdx;
       previewAtMs = now;
       if (!drawPatternThumbnail(loadTargetIdx, false)) frameDrawn = false;
@@ -1935,6 +1945,7 @@ void loop() {
     // Same throttled-redraw scheme as the info screens: this is static text and
     // repainting it every loop races the panel scanout.
     if (pausedDirty || (now - pausedDrawnAtMs) >= NET_INFO_REDRAW_MS) {
+      PFCanvas::settle();
       drawPausedScreen();
       pausedDrawnAtMs = now;
       pausedDirty = false;
@@ -1943,25 +1954,41 @@ void loop() {
     }
   } else if (currentMode == MODE_RUNNING) {
     pausedDirty = true;
+    PFFeatureFrame frame{dt, currentContentName(), true, chromeVisible(),
+                         currentPatternIdx, (int)currentMode};
+    // The banner, the notices and a feature's overlay are drawn on the back
+    // buffer after the pattern has presented, so the flip has to wait for
+    // them. A frame with none of them can be pushed to the panel by the other
+    // core while this one starts on the next (src/core_canvas.h, "The push to
+    // the panel").
+    const bool drawnOver = PatternflowBanner::active() ||
+                           contentNoticeTimer > 0.0f ||
+                           brightnessAdjusting ||
+                           PFFeatures::overlayActive(frame);
+    PFCanvas::beginPatternFrame(activePatternIdx, drawnOver, currentBrightness, &appliedBrightness);
     updateActivePattern(dt, input);
     drawActivePattern();
     canvasShowsThumb = false;
-    drawBannerOverlay();
-    {
-      PFFeatureFrame frame{dt, currentContentName(), true, chromeVisible(),
-                         currentPatternIdx, (int)currentMode};
+    if (PFCanvas::endPatternFrame()) {
+      // Gone to the other core, which flips it and applies the power clamp.
+      frameHandedOff = true;
+    } else {
+      // Nothing was presented (the pattern did not draw), or it is in the
+      // back buffer. Either way the panel is this task's again from here.
+      PFCanvas::settle();
+      drawBannerOverlay();
       PFFeatures::drawOverlay(frame);
-    }
 
-    if (contentNoticeTimer > 0.0f) {
-      drawContentNotice();
-      contentNoticeTimer -= dt;
-    }
+      if (contentNoticeTimer > 0.0f) {
+        drawContentNotice();
+        contentNoticeTimer -= dt;
+      }
 
-    // Shown for the whole time the mode is active — this IS the mode
-    // indicator; when it disappears you're back to normal knob control.
-    if (brightnessAdjusting) {
-      drawBrightnessNotice();
+      // Shown for the whole time the mode is active — this IS the mode
+      // indicator; when it disappears you're back to normal knob control.
+      if (brightnessAdjusting) {
+        drawBrightnessNotice();
+      }
     }
   } else {
     // Features may own an alternate SELECT mode (e.g. Sequences playlist).
@@ -1969,6 +1996,10 @@ void loop() {
     bool selectFeatureOwnsBrowse = PFFeatures::handleSelectInput(input);
     int selectSteps = 0;
     if (!selectFeatureOwnsBrowse && input.knobDeltas[3] != 0) {
+      if ((selectAccum > 0 && input.knobDeltas[3] < 0) ||
+          (selectAccum < 0 && input.knobDeltas[3] > 0)) {
+        selectAccum = 0;
+      }
       selectAccum += input.knobDeltas[3];
       selectSteps = selectAccum / SELECT_DETENTS_PER_STEP;   // truncates toward zero
       selectAccum -= selectSteps * SELECT_DETENTS_PER_STEP;
@@ -2032,6 +2063,7 @@ void loop() {
     // reads upright, exactly as before. Feed a neutral input frame (no knob
     // deltas / buttons) so browsing with K4 doesn't drive the pattern's own
     // parameters — it just animates over time.
+    PFCanvas::settle();
     dma_display->setRotation(0);
     if (currentPatternIdx == activePatternIdx && !loadInFlight) {
       InputFrame preview = {};
@@ -2062,7 +2094,7 @@ void loop() {
   // rate the panel never showed. Exponential average so /status reads steady
   // instead of jittering with every frame.
   if (frameDrawn) {
-    dma_display->flipDMABuffer();
+    if (!frameHandedOff) dma_display->flipDMABuffer();
     uint32_t frameUs = micros() - frameStartedUs;
     renderFrameUs = renderFrameUs ? (renderFrameUs * 7 + frameUs) / 8 : frameUs;
 
@@ -2074,11 +2106,12 @@ void loop() {
     // handed to the panel is capped, so turning the clamp off (or pointing a
     // pattern at something darker) restores their setting with no further
     // input from them.
-    uint8_t allowed = PatternflowPower::allow(currentBrightness);
-    if (allowed != appliedBrightness) {
-      appliedBrightness = allowed;
-      dma_display->setBrightness8(allowed);
+    if (!frameHandedOff) {
+      uint8_t allowed = PatternflowPower::allow(currentBrightness);
+      if (allowed != appliedBrightness) {
+        appliedBrightness = allowed;
+        dma_display->setBrightness8(allowed);
+      }
     }
   }
-
 }

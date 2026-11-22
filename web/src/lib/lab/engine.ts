@@ -321,6 +321,16 @@ export class LabEngine {
       : null;
   }
 
+  // Coverage buffers, kept between buildEntries calls. render builds the
+  // entries every frame, and each masked paint layer used to get a new
+  // Uint8Array there: 8,192 bytes a frame on the 128 × 64 panel, 16.8 MB on a
+  // 4096 × 4096 Graphic Export render. The n-th masked paint layer of a call
+  // takes the n-th buffer. render, coverage and compositeBackdrop each finish
+  // with their entries before buildEntries runs again, so a buffer is never
+  // read after it has been refilled.
+  private maskPool: Uint8Array[] = [];
+  private maskPoolPixels = 0;
+
   /**
    * Bottom→top composite entries with mask grouping: a mask layer contributes
    * no paint — its buffer ANDs into the coverage of the nearest paint layer
@@ -332,8 +342,14 @@ export class LabEngine {
     excludeId: string | null,
   ): CompositeEntry[] {
     const pixelCount = matrix.width * matrix.height;
+    if (this.maskPoolPixels !== pixelCount) {
+      // Another frame size: none of the kept buffers fit it.
+      this.maskPool = [];
+      this.maskPoolPixels = pixelCount;
+    }
     const entries: CompositeEntry[] = [];
     let lastPaint: CompositeEntry | null = null;
+    let masked = 0;
 
     for (let index = layers.length - 1; index >= 0; index--) {
       const layer = layers[index];
@@ -353,7 +369,12 @@ export class LabEngine {
 
       if (layer.role === "mask") {
         if (!lastPaint) continue; // nothing below it to gate, or a 0% layer
-        if (!lastPaint.mask) lastPaint.mask = new Uint8Array(pixelCount).fill(1);
+        if (!lastPaint.mask) {
+          // Switched back on: the buffer still holds an earlier call's mask.
+          const kept = (this.maskPool[masked] ??= new Uint8Array(pixelCount));
+          masked++;
+          lastPaint.mask = kept.fill(1);
+        }
         applyMaskToCoverage(
           lastPaint.mask,
           buffer,

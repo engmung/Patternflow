@@ -16,8 +16,10 @@ import { useState } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import HardwareModal from "./HardwareModal";
+import { bakedRampLut } from "@/lib/lab/cppPrompt";
 import { useLabStore } from "@/lib/lab/store";
 import { PROJECT_STORAGE, serializeProject } from "@/lib/lab/serialize";
+import { codeUsesValueField } from "@/lib/pattern/ramp";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("@/lib/community/auth-client", () => ({
@@ -255,6 +257,58 @@ describe("HardwareModal", () => {
     } finally {
       delete (navigator as { clipboard?: unknown }).clipboard;
     }
+  });
+
+  // The prompt used to paste a ramp pattern's 256-entry table and ask the
+  // model to copy it back. It asks for one placeholder line now, and the
+  // table that goes out in the .h is the lab's own.
+  it("puts the lab's ramp table where the model left the placeholder", async () => {
+    const [layer] = useLabStore.getState().layers;
+    if (layer.type !== "code") throw new Error("not code");
+    // The lab opens on a value field: its colour is the ramp.
+    expect(codeUsesValueField(layer.code)).toBe(true);
+    const answer = (where: string) =>
+      [
+        "#pragma once",
+        "namespace LabWave {",
+        '  const char* NAME = "Wave";',
+        where,
+        "  void draw() { PFCanvas::setPixel(0, 0, RAMP_LUT[0][0], RAMP_LUT[0][1], RAMP_LUT[0][2]); }",
+        "} // namespace LabWave",
+      ].join("\n");
+    const table = bakedRampLut(layer.ramp)
+      .split("\n")
+      .map((line) => `  ${line}`)
+      .join("\n");
+    const writeText = vi.fn<(text: string) => Promise<void>>(() => Promise.resolve());
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    try {
+      useLabStore.getState().setName("");
+      render(<Lab />);
+      fireEvent.click(screen.getByText("Copy the conversion prompt"));
+      await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+      const prompt = String(writeText.mock.calls[0][0]);
+      expect(prompt).toContain("\n    // PF_RAMP_LUT\n");
+      expect(prompt).not.toContain("RAMP_LUT[256][3] = {");
+
+      fireEvent.change(headerBox(), { target: { value: answer("  // PF_RAMP_LUT") } });
+      expect(screen.getByText("Looks like a header ✓")).toBeTruthy();
+      fireEvent.click(screen.getByText("Copy .h"));
+      await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
+      expect(writeText).toHaveBeenLastCalledWith(answer(table));
+      // The box keeps what was pasted. The table is put in on the way out.
+      expect(headerBox()).toHaveValue(answer("  // PF_RAMP_LUT"));
+    } finally {
+      delete (navigator as { clipboard?: unknown }).clipboard;
+    }
+  });
+
+  // The firmware keeps 39 characters of a name (MODULE_NAME_BYTES is 40), and
+  // the scaffold's NAME is cut there. The box stopped at 24.
+  it("lets a stack's Name box take the 39 characters the firmware keeps", () => {
+    useLabStore.getState().addCodeLayer();
+    render(<Lab />);
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveAttribute("maxlength", "39");
   });
 
   it("finds no header in an answer whose #pragma once is in a sentence", () => {

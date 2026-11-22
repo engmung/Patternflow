@@ -14,8 +14,8 @@
 // The generation prompt (BASE) mirrors Pattern Lab's COPY PROMPT assembly
 // (lib/ai/variantPrompt.ts: buildVariantCopyPrompt → buildTechGuide)
 // verbatim, with the atlas taste/craft directions layered where the lab puts
-// VARIANT_SEED_DIRECTION. If variantPrompt.ts's wording changes, change it
-// here too.
+// variantSeedDirection. If variantPrompt.ts's wording changes, change it
+// here too. lib/ai/variantPrompt.test.ts fails until it is.
 
 export type AtlasFamilyId =
   | "ink" | "waterfall" | "optics" | "advect"
@@ -927,8 +927,12 @@ Required API for every pattern:
 - Read input.knobValues[i] directly as the parameter value (matching your @knobs ranges). Do NOT read input.knobNormalized and remap it with baked constants such as 3 + kn[0] * 9 — that disconnects Pattern Lab's range editor (the user's min/max edits stop doing anything). input.knobNormalized is acceptable only for a truly unitless 0..1 blend where any range would mean the same thing.
 - Keep input.knobDeltas only as compatibility fallback if needed.
 - Optional: each knob also has a push button. input.btnPressed[i] is true only on the frame it is pressed (edge); input.btnHeld[i] is true while it is held down. Use these for momentary actions like reset, freeze, cycle, or trigger. Do not use long-press or mode-switching; that is a reserved system gesture.
+- Optional, only for a pattern that is about the time: input.hour (0 to 23), input.minute and input.second hold the local time when input.timeValid is true, so read timeValid first. Only a board with the clock feature gives true, once it has synced. Every other board gives false and 0 in the other three, so the pattern needs something to show without the time. The four are on input only, so copy what draw() needs onto params in update().
 - IMPORTANT: input is passed ONLY to update(dt, input, params). draw's signature is draw(display, params, time) with NO input argument — params.input does not exist. To read knob or button values inside draw, use params.knobValues / params.knobNormalized / params.knobDeltas / params.btnPressed / params.btnHeld (the harness mirrors the latest input onto params every frame), or stash whatever you need on params during update. Never read input.* or params.input.* inside draw.
+- Wrap every time accumulator the pattern keeps (params.t += dt * speed) at its period. The device runs for days on 32-bit floats, where an unbounded t loses precision until the motion stutters, and JavaScript's doubles hide that in the preview. A t that only reaches Math.sin or Math.cos through integer multipliers wraps at 2π: if (params.t > 2 * Math.PI) params.t -= 2 * Math.PI. A motion at any other rate gets an accumulator of its own, so the wrap never shows as a jump.
 - Use display.width and display.height in loops. Never hardcode the frame's pixel dimensions inside draw() — the same pattern is run at other resolutions, and a hardcoded size crops or zooms it.
+- Take positions from normalized coordinates, not pixel indices. const u = x / display.width runs 0 to 1 across the frame. For round shapes use a centered pair that keeps the aspect: nx = (x - display.width / 2) / s and ny = (y - display.height / 2) / s, with s = Math.min(display.width, display.height).
+- Give frequencies and sizes in those frame units. Pattern Lab's Graphic Export runs the same code at up to 4096 pixels a side, where Math.sin(x * 0.1) is about 65 waves across and not the two it is at 128. Math.sin(u * 12.8) is two at any size.
 - Declare the frame you composed for with ONE comment line near the top of the file, exactly this format:
   // @matrix 64x128
   Use exactly the dimensions given above. Pattern Lab reads this line to set the preview resolution, and the firmware uses it to map the pattern onto the physical panel.
@@ -951,6 +955,8 @@ Value-field direction (IMPORTANT — there is NO color in this pattern):
   - Value contrast is your only material — sharp boundaries, layered levels, and clear figure/ground separation matter more than in RGB mode.
   - Avoid uniform mid-grey mush (everything hovering near 0.5) and avoid pure binary output unless the idea is intentionally hard-edged.
 - Knobs must control geometry/motion/structure, never color (no hue knobs — color belongs to the ramp).
+- An LED that is off is black, and the panel has no backlight, so a frame gets its contrast from the areas it leaves dark.
+- A frame that is near white all over asks for more current than the firmware's power budget allows, and the firmware then lowers the brightness of the whole panel.
 
 Rendering craft — most attempts die here, read carefully:
 - update() is called as update(dt, input, params) — there is NO time argument in update. Referencing one gives undefined, and one undefined variable turns the whole field into NaN = a permanently black screen. Build your own clock instead: params.t = 0 in setup, params.t += dt at the top of update, and use params.t wherever the simulation needs absolute time. (draw does receive time, but keep all simulation clocking in update.)

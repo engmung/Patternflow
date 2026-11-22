@@ -97,6 +97,7 @@ each row says which port proved it.
 | `navPath` + `navLabel` + `navDesc` | the console header links the page, and the home screen gives it a row with that one-line description — the core never learns the path | /show, /mqtt, /weather, /audio-in |
 | `appendStatus(String&)` | append `,"key":value` fields to `/api/status` | MQTT role/state |
 | `drawOverlay(frame)` | after the pattern draws, before present | scheduler clock, weather clock |
+| `overlayActive(frame)` | before the pattern draws: will `drawOverlay` draw on this frame? Leave it null and the answer is taken to be yes, every frame | the weather clock (off, or the time not synced) and the scheduler's face (only over Black). On the frames they say no to, a slow pattern's frame is pushed to the panel from the other core |
 | `composeFrame(frame, w, h)` | the finished canvas on its way to the panel, before the blit — return a buffer to show instead, or null | the clock feature: alpha-blended digits, and the pattern masked to the inside of them |
 | `handleSelectInput(input)` + `drawSelect()` + `decorateSelect()` | the SELECT screen (K4's pattern browser): consume its knobs, draw it entirely, or add a hint after the default draw — so a feature can own an alternate browser without the sketch naming it | the show feature's Sequences playlist |
 

@@ -36,20 +36,14 @@ static inline void IRAM_ATTR handleEncoder(int idx, int pinA, int pinB) {
   if ((uint32_t)(now - encLastUs[idx]) < ENC_BOUNCE_US) return;
 #endif
 
+  // Raw quadrature edges only; direction inversion (defaulting to INVERT_ENCODER
+  // in config.h and editable per knob at /knobs) is applied once in getClicks().
   switch ((prev << 2) | s) {
     case 0b0001: case 0b0111: case 0b1110: case 0b1000:
-#if INVERT_ENCODER
-      encPos[idx]--;
-#else
       encPos[idx]++;
-#endif
       break;
     case 0b0010: case 0b1011: case 0b1101: case 0b0100:
-#if INVERT_ENCODER
-      encPos[idx]++;
-#else
       encPos[idx]--;
-#endif
       break;
     default:
       return;                             // illegal jump: keep prev, count nothing

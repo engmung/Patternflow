@@ -24,7 +24,9 @@
 #pragma once
 
 #include <Arduino.h>
+#include <esp_heap_caps.h>
 #include "core_loop_sync.h"   // onLoopTask(): present() belongs to the frame
+#include "core_power.h"
 // Vendored HUB75 driver (src/hub75/), not the Library Manager copy. Every
 // change from upstream is in src/hub75/patternflow.patch, and
 // src/hub75/VENDORED.md says why.
@@ -213,13 +215,216 @@ inline uint32_t presentUs = 0;
 typedef const uint8_t* (*ComposeFn)(const uint8_t* canvas, int w, int h);
 inline ComposeFn composeHook = nullptr;
 
+// ── The push to the panel, on the other core ────────────────────────────
+// The blit in present() is about 3.5 ms, and while the loop task spends it
+// Core 0 has little to do. So a pattern slow enough to want the time back has
+// its frame handed over: present() copies the canvas to a snapshot in PSRAM
+// and wakes a task on Core 0, which waits for the last swap, blits, flips and
+// applies the power clamp while the loop task is already on the next frame.
+// The snapshot is in PSRAM because 24 KB of internal RAM is more than the
+// Audio edition has to give.
+//
+// One task writes the panel at a time. Three things keep that true:
+//
+//   present() waits for the frame before (settle()) before it hands over the
+//   next, so there is never more than one frame out, and gammaLUT_* are
+//   rebuilt only after that wait;
+//
+//   a frame the sketch is going to draw on (banner, notices, a feature's
+//   overlay) is not handed over, because those are drawn on the back buffer
+//   after present() and the flip has to come after them;
+//
+//   whatever else writes the panel itself (SELECT, the info cards, sleep)
+//   calls settle() first.
+//
+// Only a slow pattern is handed over. One that draws in under a refresh or
+// two is already waiting on the panel, not on the blit: Origin's frame is
+// 6.7 ms either way, and handing it over would only spend half of Core 0 on
+// it. HANDOFF_ON_US is the pattern's own update() and draw(), smoothed. At
+// 8 ms the blit can take twice its time, sharing Core 0 with the network
+// task, and still be done before the next frame is. The gap down to
+// HANDOFF_OFF_US keeps a pattern near the line from changing sides every
+// second. Each pattern starts on the loop task and is timed afresh, so what
+// ran before it does not decide.
+//
+// Measured on a board, 2026-11-22, the eleven modules on it that take 8 to
+// 37 ms, each with the handoff switched off, on, on, off: every one 1.9 to
+// 3.6 ms a frame shorter handed over (0602 21.2 -> 17.9 ms, Launching
+// 13.7 -> 10.3). It is not the whole 3.5: with the blit reading PSRAM on the
+// other core, a pattern that keeps its own data there draws up to 1.2 ms
+// slower.
+//
+// Build with -DPF_PRESENT_ASYNC=0 for a firmware that never hands a frame
+// over. handoffEnabled is the same switch while it runs.
+#ifndef PF_PRESENT_ASYNC
+#define PF_PRESENT_ASYNC 1
+#endif
+
+constexpr uint32_t HANDOFF_ON_US = 8000;
+constexpr uint32_t HANDOFF_OFF_US = 6000;
+// A pattern's first frames are not its pace: the first draw after a load
+// fills caches and ran 20 ms for one that settles at 6. So the first few are
+// not timed at all, and nothing is decided until the average has had time to
+// forget where it started. A pattern that will be handed over waits about a
+// second for it.
+constexpr uint16_t HANDOFF_SKIP_FRAMES = 4;
+constexpr uint16_t HANDOFF_SETTLE_FRAMES = 32;
+// The push task used 1,284 bytes at its deepest on a board, the clamp's
+// rewrite of the brightness included. This is twice that.
+constexpr uint32_t PUSH_TASK_STACK = 2560;
+
+inline uint8_t* handoffSnap = nullptr;
+inline SemaphoreHandle_t handoffGo = nullptr;     // loop task -> push task
+inline SemaphoreHandle_t handoffDone = nullptr;   // push task -> loop task
+inline TaskHandle_t pushTask = nullptr;
+inline bool handoffEnabled = true;
+
+// The loop task's own. frameOut: a frame is with the push task. mayHandOff
+// and handedOff are this frame's, between beginPatternFrame() and
+// endPatternFrame().
+inline bool frameOut = false;
+inline bool mayHandOff = false;
+inline bool handedOff = false;
+inline bool patternTimed = false;
+inline uint32_t patternStartedUs = 0;
+inline uint32_t patternUs = 0;
+inline bool slowPattern = false;
+inline int timedPattern = -1;
+inline uint16_t patternFrames = 0;
+inline uint8_t wantBrightness = DEFAULT_BRIGHTNESS;
+inline uint8_t* appliedBrightnessRef = nullptr;
+
+// The frame out. Written by the loop task before it gives handoffGo and read
+// back after it takes handoffDone; the push task has them in between.
+inline int jobSatQ8 = 256;
+inline uint8_t jobRequested = DEFAULT_BRIGHTNESS;
+inline uint8_t jobApplied = DEFAULT_BRIGHTNESS;
+
+// Blits that began without hearing that the swap before them had taken
+// effect. Zero on a healthy panel.
+inline uint32_t flipMisses = 0;
+
+inline void pushTaskFn(void*) {
+  for (;;) {
+    xSemaphoreTake(handoffGo, portMAX_DELAY);
+    if (!dma_display->waitForFlip()) flipMisses++;
+    const uint32_t startedUs = micros();
+    dma_display->blitRGB888(handoffSnap, gammaLUT_R, gammaLUT_G, gammaLUT_B, jobSatQ8);
+    const uint32_t us = micros() - startedUs;
+    presentUs = presentUs ? (presentUs * 7 + us) / 8 : us;
+    dma_display->flipDMABuffer();
+    // The clamp, as the sketch applies it after a frame it flipped itself.
+    const uint8_t allowed = PatternflowPower::allow(jobRequested);
+    if (allowed != jobApplied) {
+      jobApplied = allowed;
+      dma_display->setBrightness8(allowed);
+    }
+    xSemaphoreGive(handoffDone);
+  }
+}
+
+// Once, from setup(). Without PSRAM, or if the task cannot be made, nothing
+// is handed over and present() does what it always did.
+inline void beginHandoff() {
+#if PF_PRESENT_ASYNC
+  if (pushTask) return;
+  uint8_t* snap = (uint8_t*)heap_caps_malloc(BUFFER_BYTES, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  SemaphoreHandle_t go = xSemaphoreCreateBinary();
+  SemaphoreHandle_t done = xSemaphoreCreateBinary();
+  handoffSnap = snap;
+  handoffGo = go;
+  handoffDone = done;
+  // Priority 1, with the network task and the other workers on this core.
+  // Above them it would take 3.5 ms out of every frame from the MIDI worker
+  // and the audio analysis without asking; beside them it takes turns, and
+  // HANDOFF_ON_US leaves it the time to.
+  if (snap && go && done &&
+      xTaskCreatePinnedToCore(pushTaskFn, "pf-blit", PUSH_TASK_STACK, nullptr, 1,
+                              &pushTask, 0) == pdPASS) {
+    Serial.printf("[BLIT-TASK] on Core 0 (stack %u, prio 1)\n", (unsigned)PUSH_TASK_STACK);
+    return;
+  }
+  pushTask = nullptr;
+  if (go) vSemaphoreDelete(go);
+  if (done) vSemaphoreDelete(done);
+  if (snap) heap_caps_free(snap);
+  handoffSnap = nullptr;
+  handoffGo = nullptr;
+  handoffDone = nullptr;
+#endif
+}
+
+// Wait for the frame that is out, if one is. Loop task only. Nothing may
+// write the panel, or stop it, before this returns.
+inline void settle() {
+  if (!frameOut) return;
+  xSemaphoreTake(handoffDone, portMAX_DELAY);
+  frameOut = false;
+  if (appliedBrightnessRef) *appliedBrightnessRef = jobApplied;
+}
+
+// Around the running pattern's update() and draw(). `pattern` says whose
+// frame it is, so a new one is timed from nothing. `drawnOver` is true on a
+// frame the sketch will draw on after the pattern. `requested` is the
+// brightness the person set and `applied` is where the sketch keeps what the
+// panel is running at; a frame handed over updates it at the next settle().
+inline void beginPatternFrame(int pattern, bool drawnOver, uint8_t requested, uint8_t* applied) {
+  if (pattern != timedPattern) {
+    timedPattern = pattern;
+    patternUs = 0;
+    patternFrames = 0;
+    slowPattern = false;
+  }
+  wantBrightness = requested;
+  appliedBrightnessRef = applied;
+  handedOff = false;
+  mayHandOff = !drawnOver && slowPattern && handoffEnabled && pushTask != nullptr;
+  patternTimed = true;
+  patternStartedUs = micros();
+}
+
+// True when the frame went to the other core, which flips it and applies the
+// clamp. False when it is in the back buffer and the flip is the caller's.
+inline bool endPatternFrame() {
+  const bool went = handedOff;
+  handedOff = false;
+  mayHandOff = false;
+  patternTimed = false;
+  return went;
+}
+
 inline void present() {
   // The panel is the loop task's. A module's setup() now runs on a loader
   // task (pattern_registry.h) while the loop keeps drawing, and a setup()
   // that presents from there would blit into a frame the loop is flipping.
   // Before attach() there is no loop task yet and this is a no-op.
   if (!PFLoopSync::onLoopTask()) return;
-  uint32_t presentStartedUs = micros();
+
+  if (patternTimed) {
+    patternTimed = false;
+    uint32_t us = micros() - patternStartedUs;
+    if (patternFrames < 0xFFFF) patternFrames++;
+    if (patternFrames > HANDOFF_SKIP_FRAMES) {
+      if (patternUs == 0) {
+        patternUs = us;
+      } else {
+        // One long frame is not a slower pattern. Counted at no more than
+        // twice the average, a frame that waited on the flash moves it an
+        // eighth; a pattern that really did slow down gets there in a few.
+        if (us > patternUs * 2) us = patternUs * 2;
+        patternUs = (patternUs * 7 + us) / 8;
+      }
+      if (patternFrames >= HANDOFF_SETTLE_FRAMES) {
+        if (patternUs >= HANDOFF_ON_US) slowPattern = true;
+        else if (patternUs < HANDOFF_OFF_US) slowPattern = false;
+      }
+    }
+  }
+
+  // The frame before this one may still be going out. Its blit reads the
+  // LUTs and the snapshot.
+  settle();
+
   if (!gammaLUTReady) buildGammaLUT();
 
   const uint8_t* shown = buffer;
@@ -227,6 +432,25 @@ inline void present() {
     const uint8_t* alt = composeHook(buffer, W, H);
     if (alt) shown = alt;
   }
+
+  if (mayHandOff) {
+    mayHandOff = false;
+    memcpy(handoffSnap, shown, BUFFER_BYTES);
+    jobSatQ8 = satBoostQ8;
+    jobRequested = wantBrightness;
+    jobApplied = appliedBrightnessRef ? *appliedBrightnessRef : wantBrightness;
+    frameOut = true;
+    handedOff = true;
+    xSemaphoreGive(handoffGo);
+    resetFrame();
+    return;
+  }
+
+  // The flip before this one returned at once, and the buffer it retired is
+  // on the panel until the DMA ends its pass. A frame that took longer than a
+  // refresh to draw does not wait here.
+  if (!dma_display->waitForFlip()) flipMisses++;
+  uint32_t presentStartedUs = micros();
 
   // One call for the whole frame instead of 8,192 per-pixel calls.
   //

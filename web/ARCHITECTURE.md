@@ -62,7 +62,7 @@ Mirrors the firmware; the same JS runs in the browser, in the community's sandbo
 - **`src/lib/pattern/controls.ts`** — knob-scale constants shared with the firmware.
 - **`src/lib/pattern/share.ts`** — licence header + attribution footer. The community bakes them into the stored code when a pattern is published or its details are edited (`src/lib/community/license.ts`), so the pattern page shows them, and a download wraps the code it hands out (`src/lib/community/download.ts`). The Live Editor and the Lab never add them while you write.
 - **`src/lib/pattern/packs.ts`** — the Basics pack that ships with the firmware (`public/packs/`, built by `firmware/toolchain/make_pack.py`).
-- **`src/lib/ai/variantPrompt.ts`** — the prompt the Lab's Copy prompt puts on the clipboard, for whatever AI chat you paste it into. The site calls no AI itself. The Lab's Gemini gallery, which did, came out on 23 October 2026.
+- **`src/lib/ai/variantPrompt.ts`** — the prompt the Lab's Copy prompt puts on the clipboard, for whatever AI chat you paste it into. The landing page's Copy creation prompt is the same one, built here without the parts its preview lacks (`components/sections/variantPrompt.ts`). The site calls no AI itself. The Lab's Gemini gallery, which did, came out on 23 October 2026.
 
 ## Pattern Lab (`src/app/pattern-lab/` + `src/lib/lab/`)
 
@@ -78,7 +78,7 @@ A layered, dockable workspace: nine panels over a layer-stack project. A panel i
 
 Each panel owns its stylesheet (`panels/<Panel>.module.css`); `PatternLab.module.css` keeps only what two or more files draw with, and `LabPanels.module.css` the dock chrome. The lab reaches the community through exactly one file, `community.ts` (the publish and send modals, the configured switches, the handoff, the `.pfs` reader) — ESLint refuses any other import of `@/components/community` or `@/lib/community` from under the lab.
 
-Exports flatten the visible stack to one standalone pattern (`flatten.ts`); `hExport.ts` writes the C++ header; `HardwareModal.tsx` sends it to the build service or the panel. Persistence is `localStorage`: the project (`serialize.ts`, `patternflow_lab_project_v2`), the dock layout, a ring of parked sessions (`sessions.ts`), capture settings and shaders under their own keys, and the draft and ramp keys the lab stopped writing at Pattern Lab v2 on 27 July 2026, which `migrateLegacyDraft` in `serialize.ts` lifts into a project when none restores. The AI gallery's patterns and Gemini key, written until 23 October 2026, are removed on open (`dropAiGallery` in `src/lib/lab/legacyDraft.ts`).
+Exports flatten the visible stack to one standalone pattern (`flatten.ts`); `hExport.ts` writes the C++ header; `HardwareModal.tsx` sends it to the build service or the panel. The two C++ conversion prompts, one for a single pattern (`cppPrompt.ts`) and one for a layer of a stack (`hExport.ts`), take what they tell a model about the ESP32-S3 from `cppRules.ts`. Persistence is `localStorage`: the project (`serialize.ts`, `patternflow_lab_project_v2`), the dock layout, a ring of parked sessions (`sessions.ts`), capture settings and shaders under their own keys, and the draft and ramp keys the lab stopped writing at Pattern Lab v2 on 27 July 2026, which `migrateLegacyDraft` in `serialize.ts` lifts into a project when none restores. The AI gallery's patterns and Gemini key, written until 23 October 2026, are removed on open (`dropAiGallery` in `src/lib/lab/legacyDraft.ts`).
 
 ## Community (`src/lib/community/` + `src/components/community/`)
 

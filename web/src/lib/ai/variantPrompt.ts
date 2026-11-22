@@ -4,6 +4,12 @@
 // its wording. The guide's practice AI tells it apart by lines it always
 // writes (components/guide/desk/ai/answers.ts, checked by answers.test.ts),
 // and the community atlas mirrors it (lib/atlas/data.ts). Change them with it.
+// variantPrompt.test.ts fails while the atlas's copy of the tech guide differs
+// from this one by a character.
+//
+// The landing page's Copy creation prompt is this prompt in RGB mode with a
+// knob block of its own (components/sections/variantPrompt.ts). It is built
+// here, by buildVariantPrompt, so the two give the same API rules.
 
 import { buildMatrixAnnotationLine, describeMatrixShape, type MatrixSize } from "@/lib/pattern/matrix";
 import type { ColorMode } from "./settings";
@@ -45,8 +51,10 @@ I will give you one existing Patternflow pattern. Use it as a seed, not as a cag
 
 // Technical + quality spec (API rules, controls, color).
 // Split into pieces so the pixel-write rule and the color section can swap
-// depending on ColorMode.
-const TECH_API_COMMON = `Required API for every pattern:
+// depending on ColorMode. The buttons, the wall time and the @matrix line are
+// pieces of their own because a prompt copied beside a preview that has none
+// of them leaves them out (PreviewRule).
+const TECH_API_KNOBS = `Required API for every pattern:
 - export function setup(params) {}
 - export function update(dt, input, params) {}
 - export function draw(display, params, time) {}
@@ -55,11 +63,31 @@ const TECH_API_COMMON = `Required API for every pattern:
   // @knobs Folds=3..12, Speed=0.1..10, Zoom=2..17, Contrast=0.1..1
   (exactly 4 comma-separated entries, Name=min..max, short names). Pattern Lab parses this line, renames the on-screen knobs, and sets their min/max automatically — the user can then retune any range and your pattern follows, because you read the values back through input.knobValues.
 - Read input.knobValues[i] directly as the parameter value (matching your @knobs ranges). Do NOT read input.knobNormalized and remap it with baked constants such as 3 + kn[0] * 9 — that disconnects Pattern Lab's range editor (the user's min/max edits stop doing anything). input.knobNormalized is acceptable only for a truly unitless 0..1 blend where any range would mean the same thing.
-- Keep input.knobDeltas only as compatibility fallback if needed.
-- Optional: each knob also has a push button. input.btnPressed[i] is true only on the frame it is pressed (edge); input.btnHeld[i] is true while it is held down. Use these for momentary actions like reset, freeze, cycle, or trigger. Do not use long-press or mode-switching; that is a reserved system gesture.
-- IMPORTANT: input is passed ONLY to update(dt, input, params). draw's signature is draw(display, params, time) with NO input argument — params.input does not exist. To read knob or button values inside draw, use params.knobValues / params.knobNormalized / params.knobDeltas / params.btnPressed / params.btnHeld (the harness mirrors the latest input onto params every frame), or stash whatever you need on params during update. Never read input.* or params.input.* inside draw.
-- Use display.width and display.height in loops. Never hardcode the frame's pixel dimensions inside draw() — the same pattern is run at other resolutions, and a hardcoded size crops or zooms it.
-- Declare the frame you composed for with ONE comment line near the top of the file, exactly this format:
+- Keep input.knobDeltas only as compatibility fallback if needed.`;
+
+const TECH_API_BUTTONS = `- Optional: each knob also has a push button. input.btnPressed[i] is true only on the frame it is pressed (edge); input.btnHeld[i] is true while it is held down. Use these for momentary actions like reset, freeze, cycle, or trigger. Do not use long-press or mode-switching; that is a reserved system gesture.`;
+
+// The four fields the firmware's input frame ends with (abi/pf_abi.h). The
+// wording follows firmware/CUSTOM_PATTERNS.md, "The time". A module that reads
+// timeValid is stamped ABI 3 and v3.12.0 refuses to install it, so the line
+// keeps the time to patterns that are about it.
+const TECH_API_WALL_TIME = `- Optional, only for a pattern that is about the time: input.hour (0 to 23), input.minute and input.second hold the local time when input.timeValid is true, so read timeValid first. Only a board with the clock feature gives true, once it has synced. Every other board gives false and 0 in the other three, so the pattern needs something to show without the time. The four are on input only, so copy what draw() needs onto params in update().`;
+
+const TECH_API_DRAW = `- IMPORTANT: input is passed ONLY to update(dt, input, params). draw's signature is draw(display, params, time) with NO input argument — params.input does not exist. To read knob or button values inside draw, use params.knobValues / params.knobNormalized / params.knobDeltas / params.btnPressed / params.btnHeld (the harness mirrors the latest input onto params every frame), or stash whatever you need on params during update. Never read input.* or params.input.* inside draw.`;
+
+// The conversion prompt's rule ("Wrap every time accumulator", in what
+// buildCppPrompt under lib/lab writes), asked of the JavaScript first so the
+// C++ has a period to keep.
+const TECH_API_ACCUMULATOR = `- Wrap every time accumulator the pattern keeps (params.t += dt * speed) at its period. The device runs for days on 32-bit floats, where an unbounded t loses precision until the motion stutters, and JavaScript's doubles hide that in the preview. A t that only reaches Math.sin or Math.cos through integer multipliers wraps at 2π: if (params.t > 2 * Math.PI) params.t -= 2 * Math.PI. A motion at any other rate gets an accumulator of its own, so the wrap never shows as a jump.`;
+
+// The two lines after the loop rule are lib/lab/capture/anySizePrompt.ts in
+// short. That prompt exists to rewrite a pattern written in pixel units, and
+// a pattern written in frame units from the start never needs it.
+const TECH_API_FRAME = `- Use display.width and display.height in loops. Never hardcode the frame's pixel dimensions inside draw() — the same pattern is run at other resolutions, and a hardcoded size crops or zooms it.
+- Take positions from normalized coordinates, not pixel indices. const u = x / display.width runs 0 to 1 across the frame. For round shapes use a centered pair that keeps the aspect: nx = (x - display.width / 2) / s and ny = (y - display.height / 2) / s, with s = Math.min(display.width, display.height).
+- Give frequencies and sizes in those frame units. Pattern Lab's Graphic Export runs the same code at up to 4096 pixels a side, where Math.sin(x * 0.1) is about 65 waves across and not the two it is at 128. Math.sin(u * 12.8) is two at any size.`;
+
+const TECH_API_MATRIX_LINE = `- Declare the frame you composed for with ONE comment line near the top of the file, exactly this format:
   {{MATRIX_LINE}}
   Use exactly the dimensions given above. Pattern Lab reads this line to set the preview resolution, and the firmware uses it to map the pattern onto the physical panel.`;
 
@@ -94,15 +122,59 @@ const TECH_COLOR_VFIELD = `Value-field direction (IMPORTANT — there is NO colo
   - Avoid uniform mid-grey mush (everything hovering near 0.5) and avoid pure binary output unless the idea is intentionally hard-edged.
 - Knobs must control geometry/motion/structure, never color (no hue knobs — color belongs to the ramp).`;
 
-function buildTechGuide(colorMode: ColorMode, matrix: MatrixSize) {
-  const pixelRule = colorMode === "vfield" ? TECH_PIXEL_VFIELD : TECH_PIXEL_RGB;
+// What the panel does that a screen does not, closing the color section in
+// both modes. The second line is the total power clamp
+// (firmware/patternflow/src/core_power.h): it estimates a frame's current from
+// its summed LED on-time and gives the next frame a lower brightness when that
+// is over the budget.
+const TECH_LED_PANEL = `- An LED that is off is black, and the panel has no backlight, so a frame gets its contrast from the areas it leaves dark.
+- A frame that is near white all over asks for more current than the firmware's power budget allows, and the firmware then lowers the brightness of the whole panel.`;
+
+/**
+ * A rule the prompt gives only where the preview beside the Copy button has
+ * what it describes. The buttons and the wall time arrive on `input`, and the
+ * frame is read from the `@matrix` line. Pattern Lab's preview has all of it.
+ */
+export type PreviewRule = "buttons" | "wallTime" | "matrixLine";
+
+/**
+ * The API rules, the control mapping and the color section. The atlas quotes
+ * what this returns for "vfield" and its own 64 × 128 frame
+ * (lib/atlas/data.ts).
+ */
+export function buildTechGuide(
+  colorMode: ColorMode,
+  matrix: MatrixSize,
+  without: readonly PreviewRule[] = [],
+) {
+  const api = [
+    TECH_API_KNOBS,
+    without.includes("buttons") ? null : TECH_API_BUTTONS,
+    without.includes("wallTime") ? null : TECH_API_WALL_TIME,
+    TECH_API_DRAW,
+    TECH_API_ACCUMULATOR,
+    TECH_API_FRAME,
+    without.includes("matrixLine")
+      ? null
+      : TECH_API_MATRIX_LINE.replace("{{MATRIX_LINE}}", buildMatrixAnnotationLine(matrix)),
+    colorMode === "vfield" ? TECH_PIXEL_VFIELD : TECH_PIXEL_RGB,
+  ].filter((piece): piece is string => piece !== null);
   const colorSection = colorMode === "vfield" ? TECH_COLOR_VFIELD : TECH_COLOR_RGB;
-  const api = TECH_API_COMMON.replace("{{MATRIX_LINE}}", buildMatrixAnnotationLine(matrix));
-  return `${api}\n${pixelRule}\n\n${TECH_CONTROLS}\n\n${colorSection}`;
+  return `${api.join("\n")}\n\n${TECH_CONTROLS}\n\n${colorSection}\n${TECH_LED_PANEL}`;
 }
 
+// The third of the five directions is about what the pattern is made of. In
+// RGB mode that is its color. A value-field pattern has none, and was asked
+// for "color logic" here all the same until 22 November 2026.
+const THIRD_DIRECTION: Record<ColorMode, string> = {
+  rgb: "Palette/material remix: change color logic, brightness rhythm, or foreground/background relationship.",
+  vfield:
+    "Tonal remix: change how the values are distributed between 0 and 1 and how hard the contrast between them is. Swapping figure and ground counts.",
+};
+
 // Seed-based direction: remix one existing pattern.
-const VARIANT_SEED_DIRECTION = `Variation direction:
+function variantSeedDirection(colorMode: ColorMode) {
+  return `Variation direction:
 - Keep the general intent and the four control roles understandable, but do not copy the original structure too literally.
 - At least 3 of the 5 variations must change the main drawing algorithm, not only constants, colors, thresholds, or speed.
 - Avoid making all 5 outputs feel like the same pattern with different parameter values.
@@ -110,23 +182,30 @@ const VARIANT_SEED_DIRECTION = `Variation direction:
 - Give each variation a different dominant idea. Use these five directions:
   1. Structural remix: change the main geometry or repetition system.
   2. Motion remix: change how time moves through the pattern.
-  3. Palette/material remix: change color logic, brightness rhythm, or foreground/background relationship.
+  3. ${THIRD_DIRECTION[colorMode]}
   4. Domain remix: warp, mirror, fold, scroll, rotate, or otherwise remap coordinates.
   5. Contrast remix: make a clearly different sparse/dense, hard/soft, or organic/mechanical interpretation.
 - The variations can be bold. They should still feel related to the seed, but not trapped inside its exact look.
 - Keep the patterns bright enough for an LED matrix and reasonably ESP32-friendly.
 - Avoid smoothing/lerping knob-controlled values unless the visual idea specifically needs inertia.`;
+}
 
+type VariantPromptParts = {
+  /** The seed. */
+  code: string;
+  matrix: MatrixSize;
+  colorMode: ColorMode;
+  /** Where the knobs stand, placed above the seed: a heading line, then a line for each knob. */
+  controls: string;
+  /** Rules to leave out, for a preview that has nothing behind them. */
+  without?: readonly PreviewRule[];
+};
 
-// The model returns 5 markdown code blocks, in the ColorMode picked beside the
-// button.
-export function buildVariantCopyPrompt(
-  code: string,
-  knobs: number[],
-  ranges: Array<[number, number]>,
-  colorMode: ColorMode = "rgb",
-  matrix: MatrixSize = { width: 128, height: 64 },
-) {
+/**
+ * The prompt, whichever page copies it. The model returns 5 markdown code
+ * blocks, in the ColorMode asked for.
+ */
+export function buildVariantPrompt({ code, matrix, colorMode, controls, without }: VariantPromptParts) {
   return `${variantIntro(matrix)}
 
 Very important output rules:
@@ -138,12 +217,11 @@ Very important output rules:
 - Put a short variation name before each code block.
 - Do not include nested triple backticks inside any code block.
 
-${buildTechGuide(colorMode, matrix)}
+${buildTechGuide(colorMode, matrix, without)}
 
-${VARIANT_SEED_DIRECTION}
+${variantSeedDirection(colorMode)}
 
-Current Pattern Lab controls:
-${controlLines(knobs, ranges)}
+${controls}
 
 Existing pattern${
     colorMode === "vfield"
@@ -153,4 +231,20 @@ Existing pattern${
 \`\`\`javascript
 ${code}
 \`\`\``;
+}
+
+// Pattern Lab's Copy prompt, in the ColorMode picked beside the button.
+export function buildVariantCopyPrompt(
+  code: string,
+  knobs: number[],
+  ranges: Array<[number, number]>,
+  colorMode: ColorMode = "rgb",
+  matrix: MatrixSize = { width: 128, height: 64 },
+) {
+  return buildVariantPrompt({
+    code,
+    matrix,
+    colorMode,
+    controls: `Current Pattern Lab controls:\n${controlLines(knobs, ranges)}`,
+  });
 }

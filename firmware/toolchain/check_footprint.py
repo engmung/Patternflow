@@ -69,12 +69,20 @@ IRAM_END = 0x403E0000
 # use counter, four status counters), the storage generation and the current
 # module's (8 B) and four small flags and counters. The slots themselves are
 # allocated in PSRAM on the first park.
+# Re-pinned 2026-11-22: audio static DRAM -2160. The on-board analysis became a
+# real-input transform and gave back 2,304 B (half the imaginary lane, half the
+# bit-reversal table, the whole window table, less the magnitudes and bucket
+# edges it now keeps). Every edition static DRAM +192..+216 (audio's is inside
+# the -2160) and IRAM +136, +64 on audio: the
+# state for handing a frame to the other core and for waiting on the buffer
+# swap (core_canvas.h, src/hub75), and the GDMA callback, which is in IRAM. The
+# push task's stack and its PSRAM snapshot are heap, and not in these numbers.
 PINS = {
-    "default": (141688, 71471),
-    "audio": (161216, 71951),
-    "performance": (158200, 71471),
-    "clock": (141976, 71471),
-    "midi": (154288, 70671),
+    "default": (141904, 71607),
+    "audio": (159056, 72015),
+    "performance": (158400, 71607),
+    "clock": (142192, 71607),
+    "midi": (154480, 70807),
 }
 
 # Enough that an intentional, well-understood adjustment does not fire the check

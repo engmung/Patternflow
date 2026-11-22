@@ -81,6 +81,9 @@
  #include <esp_arduino_version.h>
 #endif
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+
 #define DMA_MAX (4096-4)
 
 // The type used for this SoC
@@ -150,6 +153,11 @@
 
      void flip_dma_output_buffer(int back_buffer_id);
 
+     // PATTERNFLOW ADDITION (not upstream). Blocks until the DMA has left
+     // the chain the last flip retired, which is when that buffer may be
+     // written. False if nothing was heard for timeout_ms.
+     bool wait_for_flip(uint32_t timeout_ms = 20);
+
   private:
 
     config_t _cfg;
@@ -169,6 +177,18 @@
 
     esp_lcd_i80_bus_handle_t _i80_bus = nullptr;
 
+    // PATTERNFLOW ADDITION (not upstream). Descriptor 0 of each chain carries
+    // suc_eof, so the GDMA raises one interrupt as it enters a chain and
+    // names that descriptor. _chain_entered is the last one it named,
+    // _flip_target the one the last flip asked for; they are equal once the
+    // flip has taken effect. See VENDORED.md, "The blit waits for the swap".
+    volatile intptr_t  _chain_entered = 0;
+    volatile intptr_t  _flip_target = 0;
+    volatile bool      _flip_waiting = false;
+    volatile bool      _dma_running = false;
+    uint8_t            _flip_misses = 0;
+    SemaphoreHandle_t  _flip_sem = nullptr;
+    static bool _on_tx_eof(gdma_channel_handle_t chan, gdma_event_data_t *event_data, void *user_data);
 
   };
 

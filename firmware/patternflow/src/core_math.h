@@ -15,6 +15,7 @@
 #endif
 #include <math.h>
 #include <stdint.h>
+#include <string.h>
 
 namespace PFMath {
 
@@ -31,8 +32,18 @@ inline bool sinLUTReady = false;
 
 inline void buildSinLUT() {
   if (sinLUTReady) return;
-  for (int i = 0; i < SIN_LUT_SIZE; i++) {
-    sinLUT[i] = sinf((float)i / (float)SIN_LUT_SIZE * TWO_PI_F);
+  constexpr int Q = SIN_LUT_SIZE / 4;
+  constexpr float STEP = TWO_PI_F / (float)SIN_LUT_SIZE;
+  sinLUT[0] = 0.0f;
+  sinLUT[Q] = 1.0f;
+  sinLUT[2 * Q] = 0.0f;
+  sinLUT[3 * Q] = -1.0f;
+  for (int i = 1; i < Q; i++) {
+    const float s = sinf((float)i * STEP);
+    sinLUT[i] = s;
+    sinLUT[2 * Q - i] = s;
+    sinLUT[2 * Q + i] = -s;
+    sinLUT[SIN_LUT_SIZE - i] = -s;
   }
   sinLUTReady = true;
 }
@@ -74,12 +85,18 @@ inline float fract(float x) {
 // abi/pf_libm.h makes them inline, still up to three compares, because they
 // keep the library's rules for NaN and signed zeros. Written as a comparison,
 // GCC emits exactly that.
+//
+// The first comparison is `!(x > lo)` and not `x < lo`, which is the same
+// two compares and differs for one input: NaN. With `x < lo` a NaN came
+// straight through, and a pattern that indexes a table with
+// (int)(clamp01(v) * 255.0f) then read wherever a NaN turned into an int
+// points. Now NaN is `lo`.
 inline float clamp(float x, float lo, float hi) {
-  return x < lo ? lo : (x > hi ? hi : x);
+  return !(x > lo) ? lo : (x > hi ? hi : x);
 }
 
 inline float clamp01(float x) {
-  return x < 0.0f ? 0.0f : (x > 1.0f ? 1.0f : x);
+  return !(x > 0.0f) ? 0.0f : (x > 1.0f ? 1.0f : x);
 }
 
 // JavaScript's `%` on floats: the sign of the dividend, the magnitude below
@@ -90,12 +107,38 @@ inline float clamp01(float x) {
 // used to claim both halves were single instructions and only one of them is.
 // Against fmodf as a call into libm on every pixel - which it is in code
 // compiled into the firmware, and was in a module until 2026-10 - this is far
-// cheaper. In a module the comparison has since changed: abi/pf_libm.h makes
-// fmodf inline there, and fmodf by a constant multiplies by a reciprocal the
-// compiler folded, where this still divides. The same value
-// as fmodf to a last-bit rounding for anything a pattern feeds it; |x / m|
-// has to stay under 2^31, and m must not be 0.
+// cheaper. The same value as fmodf to a last-bit rounding for anything a
+// pattern feeds it; |x / m| has to stay under 2^31, and m must not be 0.
+//
+// Since 2026-11 a divisor the compiler can see does not divide either. Most
+// calls are that: jsMod(x, 3.0f), jsMod(h + 0.33f, 1.0f). The quotient is
+// x times a reciprocal folded at compile time, and because that reciprocal
+// is rounded, a quotient within a rounding of a whole number can truncate to
+// the wrong side. The result is then off by exactly |m|, and the four
+// comparisons put it back. A power of two has an exact reciprocal and needs
+// none of them, which matters: with them jsMod(x, 2.0f) was slower than the
+// division GCC had already turned into a multiply, and 0601 lost 6 % of a
+// frame. Measured as modules on a board: 0510, five calls by 3 and 4 and 1
+// a pixel, 6.6 -> 5.3 ms.
 inline float jsMod(float x, float m) {
+#ifdef __GNUC__
+  if (__builtin_constant_p(m) && m != 0.0f) {
+    const float inv = 1.0f / m;
+    float r = x - m * (float)(int)(x * inv);
+    uint32_t bits;
+    memcpy(&bits, &m, sizeof(bits));
+    if ((bits & 0x007FFFFFu) == 0) return r;   // a power of two: x * inv is x / m
+    const float am = m < 0.0f ? -m : m;
+    if (x >= 0.0f) {
+      if (r < 0.0f) r += am;
+      else if (r >= am) r -= am;
+    } else {
+      if (r > 0.0f) r -= am;
+      else if (r <= -am) r += am;
+    }
+    return r;
+  }
+#endif
   return x - m * (float)(int)(x / m);
 }
 
@@ -109,7 +152,16 @@ inline float fastSin(float x) {
 }
 
 inline float fastCos(float x) {
-  return fastSin(x + (float)M_PI_2);
+  // A quarter turn on, as an index and not as an angle: sin and cos of the
+  // same x then share the multiply and the truncation, and are the same
+  // table entry apart, so the pair lies exactly on the table's circle.
+  return sinLUT[((int)(x * ANGLE_TO_LUT) + (SIN_LUT_SIZE / 4)) & (SIN_LUT_SIZE - 1)];
+}
+
+inline void fastSinCos(float x, float& s, float& c) {
+  const int idx = (int)(x * ANGLE_TO_LUT);
+  s = sinLUT[idx & (SIN_LUT_SIZE - 1)];
+  c = sinLUT[(idx + (SIN_LUT_SIZE / 4)) & (SIN_LUT_SIZE - 1)];
 }
 
 inline float lerp(float a, float b, float t) {
@@ -131,39 +183,90 @@ inline float approxLength(float x, float y) {
   return mx + mn * 0.375f;
 }
 
+// 1 / sqrt(x) and sqrt(x) with no call and no division: the bit-shift first
+// guess and two Newton steps. 4.7e-6 maximum relative error, measured and
+// pinned by toolchain/check_math.py, so either can stand in for the libm one
+// wherever a pattern draws with the result. 0 for x <= 0 and for NaN.
+//
+// What they save, measured in a module on a board, per call: sqrtf 340 ns,
+// fastSqrt 172. Normalising is where it counts, because dx / sqrtf(d2) is a
+// call and a division, 555 ns, and dx * fastInvSqrt(d2) is 151. (Compiled
+// into the firmware image by its older compiler the gap is small, 321 ns
+// against 287. Patterns run as modules.) One Newton step with tuned constants
+// was 114 and 109 ns at 0.065 % error and was left out: these are meant to be
+// safe to put wherever sqrtf was.
+inline float fastInvSqrt(float x) {
+  if (!(x > 0.0f)) return 0.0f;
+  uint32_t i;
+  memcpy(&i, &x, sizeof(i));
+  i = 0x5f375a86u - (i >> 1);
+  float y;
+  memcpy(&y, &i, sizeof(y));
+  const float xhalf = 0.5f * x;
+  y = y * (1.5f - xhalf * y * y);
+  y = y * (1.5f - xhalf * y * y);
+  return y;
+}
+
+inline float fastSqrt(float x) {
+  if (!(x > 0.0f)) return 0.0f;
+  return x * fastInvSqrt(x);
+}
+
 // Fast powf replacement for exponents that VARY per pixel — a FIXED exponent
 // should be a 256-entry LUT instead (PFColor::buildPowLUT/buildPowLUTf).
-// exp2(p·log2(x)) with float bit-trick approximations (fastapprox-style):
-// 0.054% maximum relative error over x in (0,1], p in [0.2,5] - measured and
-// pinned by toolchain/check_math.py - which is invisible on an 8-bit panel,
-// and roughly an order of magnitude cheaper than libm powf on the S3.
+// exp2(p·log2(x)), each half a polynomial: 0.0057% maximum relative error
+// over x in (0,1], p in [0.2,5] - measured and pinned by
+// toolchain/check_math.py - which is invisible on an 8-bit panel.
 //
-// Domain: x > 0. x <= 0 returns 0 — note powf(0, negative) would be +inf,
-// so a caller relying on that (value clamps to full white) must branch on
-// x <= 0 itself.
+// Until 2026-11 the two halves were fastapprox's rational forms, 0.054%, and
+// each carried a division, which on this target is a call into __divsf3. The
+// polynomials have none. On a board, 10,000 calls went from 9.8 to 5.4 ms,
+// and Hex Hive Pulse, which calls it once a pixel, from 16.2 to 12.7 ms a
+// frame as a module.
+//
+// Domain: x > 0. x <= 0 returns 0, and so does NaN — note powf(0, negative)
+// would be +inf, so a caller relying on that (value clamps to full white)
+// must branch on x <= 0 itself.
 inline float fastLog2(float x) {
-  union { float f; uint32_t i; } vx = { x };
-  union { uint32_t i; float f; } mx = { (vx.i & 0x007FFFFFu) | 0x3f000000u };
-  float y = (float)vx.i * 1.1920928955078125e-7f;  // vx.i / 2^23
-  return y - 124.22551499f
-           - 1.498030302f * mx.f
-           - 1.72587999f / (0.3520887068f + mx.f);
+  uint32_t bits;
+  memcpy(&bits, &x, sizeof(bits));
+  // Split x = m * 2^e with m in [sqrt(0.5), sqrt(2)) so u = m - 1 stays small.
+  constexpr uint32_t HALF_SQRT2_BITS = 0x3f3504f3u;
+  constexpr uint32_t OFFSET = 0x3f800000u - HALF_SQRT2_BITS;
+  const uint32_t shifted = bits + OFFSET;
+  const int32_t exp = (int32_t)(shifted >> 23) - 127;
+  uint32_t mBits = (shifted & 0x007fffffu) + HALF_SQRT2_BITS;
+  float m;
+  memcpy(&m, &mBits, sizeof(m));
+  const float u = m - 1.0f;
+  float p = 0.24327278f;
+  p = p * u - 0.39368969f;
+  p = p * u + 0.48822569f;
+  p = p * u - 0.72021413f;
+  p = p * u + 1.44251764f;
+  p = p * u - 6.3080529e-6f;
+  return (float)exp + p;
 }
 
 inline float fastExp2(float p) {
-  if (p < -126.0f) p = -126.0f;        // below float denormal range → 0-ish
-  else if (p > 126.0f) p = 126.0f;     // keep the bit cast from overflowing
-  float offset = (p < 0.0f) ? 1.0f : 0.0f;
-  int w = (int)p;
-  float z = p - (float)w + offset;
-  union { uint32_t i; float f; } v;
-  v.i = (uint32_t)((float)(1 << 23) *
-        (p + 121.2740575f + 27.7280233f / (4.84252568f - z) - 1.49012907f * z));
-  return v.f;
+  if (!(p > -126.0f)) return 0.0f;       // below normal range or NaN → 0
+  if (p > 126.0f) p = 126.0f;            // keep exponent from overflowing
+  const int w = ifloor(p);
+  const float f = p - (float)w;
+  float y = 0.013670309f;
+  y = y * f + 0.051744998f;
+  y = y * f + 0.24160436f;
+  y = y * f + 0.69297290f;
+  y = y * f + 1.00000346f;
+  uint32_t scaleBits = (uint32_t)(w + 127) << 23;
+  float scale;
+  memcpy(&scale, &scaleBits, sizeof(scale));
+  return y * scale;
 }
 
 inline float fastPow(float x, float p) {
-  if (x <= 0.0f) return 0.0f;
+  if (!(x > 0.0f)) return 0.0f;
   return fastExp2(p * fastLog2(x));
 }
 

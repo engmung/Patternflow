@@ -287,12 +287,30 @@ inline bool capture(const char* slug, bool volumeMounted) {
 // Paint a picture into the canvas. The caller presents it, the way a
 // pattern's draw() would, so it goes through the same gamma and clamp.
 inline void paint(const uint16_t* px) {
+  // Bit-exact match for (v * 255) / 31 and (v * 255) / 63 without 24,576
+  // integer divisions per paint().
+  static constexpr uint8_t LUT5[32] = {
+      0,   8,  16,  24,  32,  41,  49,  57,
+     65,  74,  82,  90,  98, 106, 115, 123,
+    131, 139, 148, 156, 164, 172, 180, 189,
+    197, 205, 213, 222, 230, 238, 246, 255,
+  };
+  static constexpr uint8_t LUT6[64] = {
+      0,   4,   8,  12,  16,  20,  24,  28,
+     32,  36,  40,  44,  48,  52,  56,  60,
+     64,  68,  72,  76,  80,  85,  89,  93,
+     97, 101, 105, 109, 113, 117, 121, 125,
+    129, 133, 137, 141, 145, 149, 153, 157,
+    161, 165, 170, 174, 178, 182, 186, 190,
+    194, 198, 202, 206, 210, 214, 218, 222,
+    226, 230, 234, 238, 242, 246, 250, 255,
+  };
   uint8_t* dst = PFCanvas::buffer;
   for (size_t i = 0; i < PIXELS; i++) {
     const uint16_t p = px[i];
-    dst[i * 3]     = (uint8_t)((((p >> 11) & 0x1F) * 255) / 31);
-    dst[i * 3 + 1] = (uint8_t)((((p >> 5) & 0x3F) * 255) / 63);
-    dst[i * 3 + 2] = (uint8_t)(((p & 0x1F) * 255) / 31);
+    dst[i * 3]     = LUT5[(p >> 11) & 0x1F];
+    dst[i * 3 + 1] = LUT6[(p >> 5) & 0x3F];
+    dst[i * 3 + 2] = LUT5[p & 0x1F];
   }
 }
 

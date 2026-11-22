@@ -67,7 +67,7 @@ If the build fails you get the compiler's own error. The usual causes are a help
 
 #### Route B — a local build (PlatformIO)
 
-1. Save the C++ output as `preset_yourname.h` inside `firmware/patternflow/presets/`.
+1. Save the C++ output as `preset_yourname.h` inside `firmware/patternflow/presets/`. Take the file from **To hardware**'s **Download .h**, not from the assistant's answer. For a pattern coloured by a ramp the answer has only a `// PF_RAMP_LUT` line where the colour table goes, and the dialog is what puts the table there.
 2. Open `pattern_registry.h` and add two lines (see [Installing your pattern](#installing-your-pattern) below).
 3. Build and flash with the bundled toolchain: `./firmware/bundles/build.sh flash patternflow.local` (over Wi-Fi) or `cd firmware/patternflow && pio run -t upload` (USB).
 

@@ -124,7 +124,12 @@ namespace Origin {
       Serial.printf("[Origin] Mode %d: %dx%d\n", params.mode, presets[params.mode].cols, presets[params.mode].rows);
     }
 
+    // The wave only ever reads phase through fastSin, so a whole turn taken
+    // off changes nothing on the panel. Left to grow, a float this size stops
+    // moving smoothly after some hours and stops altogether after some weeks.
+    // One step is at most 1.0 (dt 0.1 s, speed 5), so one subtraction is enough.
     phase += dt * params.speed * 2.0f;
+    if (phase >= PFMath::TWO_PI_F) phase -= PFMath::TWO_PI_F;
     updateColorRamp(params.hueDeg / 360.0f);
   }
 
@@ -136,38 +141,51 @@ namespace Origin {
     float curFreqBase = (float)params.freq;
     float curFreqVar  = (float)params.freq * 0.9f;
 
-    for (int y = 0; y < PANEL_RES_H; y++) {
-      for (int x = 0; x < PANEL_RES_W; x++) {
-        int lx = x - offsetX;
-        int ly = y - offsetY;
-        int ti = (lx - p.gap) / cellW;
-        int tj = (ly - p.gap) / cellH;
+    // Every pixel of a grid cell has the same distance and the same tile, so
+    // the same colour. It is worked out once a cell and the cell is filled,
+    // where there used to be four divisions, a sine and a ramp lookup for each
+    // of 8,192 pixels: about 6 ms a frame became 1.4. The expressions are the ones
+    // the per-pixel loop had, in the same order, so the picture is the same
+    // to the bit. The gaps and the margin are the black clear() leaves.
+    PFCanvas::clear();
 
-        if (ti < 0 || ti >= p.cols || tj < 0 || tj >= p.rows) {
-          PFCanvas::setPixel(x, y, 0, 0, 0);
-          continue;
-        }
-
-        int localX = lx - (p.gap + ti * cellW);
-        int localY = ly - (p.gap + tj * cellH);
-
-        if (localX < 0 || localX >= p.tileSize || localY < 0 || localY >= p.tileSize) {
-          PFCanvas::setPixel(x, y, 0, 0, 0);
-          continue;
-        }
-
-        int gx = localX / p.gridStep;
-        int gy = localY / p.gridStep;
-        if (gx >= p.gridCells) gx = p.gridCells - 1;
-        if (gy >= p.gridCells) gy = p.gridCells - 1;
-
-        float dist = distLUT[gy][gx];
+    for (int tj = 0; tj < p.rows; tj++) {
+      const int tileY = offsetY + p.gap + tj * cellH;
+      for (int ti = 0; ti < p.cols; ti++) {
+        const int tileX = offsetX + p.gap + ti * cellW;
         float tileFreq = curFreqBase + (tj * p.cols + ti) * curFreqVar * 0.15f;
-        float wave = PFMath::fastSin(dist * tileFreq * 2.0f + phase);
 
-        uint8_t r, g, b;
-        sampleColorRamp(wave * br, r, g, b);
-        PFCanvas::setPixel(x, y, r, g, b);
+        for (int gy = 0; gy < p.gridCells; gy++) {
+          // The last cell of a tile takes whatever the grid does not divide,
+          // as localY / gridStep clamped to gridCells - 1 did.
+          int y0 = tileY + gy * p.gridStep;
+          int y1 = (gy == p.gridCells - 1) ? (tileY + p.tileSize) : (y0 + p.gridStep);
+          if (y1 > tileY + p.tileSize) y1 = tileY + p.tileSize;
+          if (y0 < 0) y0 = 0;
+          if (y1 > PANEL_RES_H) y1 = PANEL_RES_H;
+          for (int gx = 0; gx < p.gridCells; gx++) {
+            int x0 = tileX + gx * p.gridStep;
+            int x1 = (gx == p.gridCells - 1) ? (tileX + p.tileSize) : (x0 + p.gridStep);
+            if (x1 > tileX + p.tileSize) x1 = tileX + p.tileSize;
+            if (x0 < 0) x0 = 0;
+            if (x1 > PANEL_RES_W) x1 = PANEL_RES_W;
+            if (x0 >= x1 || y0 >= y1) continue;
+
+            float dist = distLUT[gy][gx];
+            float wave = PFMath::fastSin(dist * tileFreq * 2.0f + phase);
+
+            uint8_t r, g, b;
+            sampleColorRamp(wave * br, r, g, b);
+
+            // setPixel and not the buffer: built as a module this header has
+            // no buffer to write, only the canvas calls.
+            for (int y = y0; y < y1; y++) {
+              for (int x = x0; x < x1; x++) {
+                PFCanvas::setPixel(x, y, r, g, b);
+              }
+            }
+          }
+        }
       }
     }
 

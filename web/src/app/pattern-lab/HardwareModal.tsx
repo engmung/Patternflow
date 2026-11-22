@@ -11,6 +11,7 @@ import {
   cleanPastedHeader,
   cleanPastedUnit,
   enforcePatternName,
+  injectRampLut,
 } from "@/lib/lab/hExport";
 import { downloadBlob } from "@/lib/lab/capture/download";
 import { buildCppPrompt } from "@/lib/lab/cppPrompt";
@@ -155,17 +156,14 @@ export default function HardwareModal({
   // Single path: the model writes NAME itself, so stamp the lab's name back
   // on (the scaffold path already carries it — buildHExport bakes it in).
   // An unnamed piece leaves the header's own NAME as it is.
-  const assembled = useMemo(
-    () =>
-      stacked
-        ? assembleH(exportData.scaffold, pastes)
-        : singleHeader === null
-          ? ""
-          : pieceNamed
-            ? enforcePatternName(singleHeader, name)
-            : singleHeader,
-    [stacked, exportData.scaffold, pastes, singleHeader, name, pieceNamed],
-  );
+  // The ramp table goes in here too. The prompt asks the model for one
+  // placeholder line and no table, and the 256 entries are the lab's own.
+  const assembled = useMemo(() => {
+    if (stacked) return assembleH(exportData.scaffold, pastes);
+    if (singleHeader === null || !lone) return "";
+    const withRamp = injectRampLut(singleHeader, lone);
+    return pieceNamed ? enforcePatternName(withRamp, name) : withRamp;
+  }, [stacked, exportData.scaffold, pastes, singleHeader, lone, name, pieceNamed]);
 
   // Text and pixel layers go into the scaffold as the pixels they show, so
   // a stack with no code layer is the whole header, no model in the loop.
@@ -275,7 +273,7 @@ export default function HardwareModal({
                     <input
                       type="text"
                       value={name}
-                      maxLength={24}
+                      maxLength={39}
                       onChange={(event) => setName(event.target.value)}
                       spellCheck={false}
                     />

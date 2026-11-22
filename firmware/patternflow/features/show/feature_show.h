@@ -63,8 +63,12 @@ inline bool takePattern(int* idx) {
 
 // Scheduler-owned clock face, drawn over Black only (dim night clock or
 // the big snooze face).
+inline bool overlayActive(const PFFeatureFrame& frame) {
+  return frame.patternName && strcmp(frame.patternName, "Black") == 0;
+}
+
 inline void drawOverlay(const PFFeatureFrame& frame) {
-  if (frame.patternName && strcmp(frame.patternName, "Black") == 0) {
+  if (overlayActive(frame)) {
     PatternflowShowSchedule::drawOwnedClock();
   }
 }
@@ -103,6 +107,7 @@ inline const PFFeature descriptor = {
     PatternflowShowSelect::handleSelectInput,
     PatternflowShowSelect::drawSelect,
     PatternflowShowSelect::decorateSelect,
+    overlayActive,
 };
 
 }  // namespace PFFeatureShow

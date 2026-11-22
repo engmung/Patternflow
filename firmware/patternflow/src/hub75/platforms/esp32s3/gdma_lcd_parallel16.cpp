@@ -265,14 +265,19 @@
     gdma_set_transfer_ability(dma_chan, &ability);
 #endif
 
-/*
-    // Enable DMA transfer callback
+    // PATTERNFLOW ADDITION (not upstream). Upstream had this registration
+    // commented out. wait_for_flip() needs to hear which chain the DMA is in.
+    // Without the semaphore or the callback it returns at once, as upstream's
+    // flip always did.
     static gdma_tx_event_callbacks_t tx_cbs = {
-       // .on_trans_eof is literally the only gdma tx event type available
-      .on_trans_eof = gdma_on_trans_eof_callback 
+      .on_trans_eof = &Bus_Parallel16::_on_tx_eof
     };
-    gdma_register_tx_event_callbacks(dma_chan, &tx_cbs, NULL);
-*/
+    _flip_sem = xSemaphoreCreateBinary();
+    if (_flip_sem && gdma_register_tx_event_callbacks(dma_chan, &tx_cbs, this) != ESP_OK)
+    {
+      vSemaphoreDelete(_flip_sem);
+      _flip_sem = nullptr;
+    }
 
     // This uses a busy loop to wait for each DMA transfer to complete...
     // but the whole point of DMA is that one's code can do other work in
@@ -363,8 +368,10 @@
     {
 
       _dmadesc_b[_dmadesc_b_idx].dw0.owner = DMA_DESCRIPTOR_BUFFER_OWNER_DMA;
-      //_dmadesc_b[_dmadesc_b_idx].dw0.suc_eof = 0;   
-      _dmadesc_b[_dmadesc_b_idx].dw0.suc_eof = (_dmadesc_b_idx == (_dmadesc_count-1));
+      // PATTERNFLOW: suc_eof on descriptor 0, where upstream put it on the
+      // last. The interrupt then comes as the DMA enters this chain, not a
+      // whole pass later.
+      _dmadesc_b[_dmadesc_b_idx].dw0.suc_eof = (_dmadesc_b_idx == 0);
       _dmadesc_b[_dmadesc_b_idx].dw0.size = _dmadesc_b[_dmadesc_b_idx].dw0.length = size; //sizeof(data);
       _dmadesc_b[_dmadesc_b_idx].buffer = data; //data;
 
@@ -389,8 +396,7 @@
       }
 
       _dmadesc_a[_dmadesc_a_idx].dw0.owner = DMA_DESCRIPTOR_BUFFER_OWNER_DMA;
-      //_dmadesc_a[_dmadesc_a_idx].dw0.suc_eof = 0;
-      _dmadesc_a[_dmadesc_a_idx].dw0.suc_eof = (_dmadesc_a_idx == (_dmadesc_count-1));    
+      _dmadesc_a[_dmadesc_a_idx].dw0.suc_eof = (_dmadesc_a_idx == 0);
       _dmadesc_a[_dmadesc_a_idx].dw0.size = _dmadesc_a[_dmadesc_a_idx].dw0.length = size; //sizeof(data);
       _dmadesc_a[_dmadesc_a_idx].buffer = data; //data;
 
@@ -409,8 +415,33 @@
 
   } // end create_dma_desc_link
 
+  // PATTERNFLOW ADDITION (not upstream). Once per pass, from the GDMA's
+  // interrupt: the descriptor named is descriptor 0 of the chain just entered.
+  bool IRAM_ATTR Bus_Parallel16::_on_tx_eof(gdma_channel_handle_t chan,
+                                            gdma_event_data_t *event_data,
+                                            void *user_data)
+  {
+    (void)chan;
+    auto *self = static_cast<Bus_Parallel16 *>(user_data);
+    const intptr_t entered = (intptr_t)event_data->tx_eof_desc_addr;
+    self->_chain_entered = entered;
+    if (self->_flip_waiting && entered == self->_flip_target)
+    {
+      self->_flip_waiting = false;
+      BaseType_t woken = pdFALSE;
+      xSemaphoreGiveFromISR(self->_flip_sem, &woken);
+      return woken == pdTRUE;
+    }
+    return false;
+  }
+
   void Bus_Parallel16::dma_transfer_start()
   {
+    _chain_entered = 0;
+    _flip_target = 0;
+    _flip_waiting = false;
+    _flip_misses = 0;
+    _dma_running = true;
     gdma_start(dma_chan, (intptr_t)&_dmadesc_a[0]); // Start DMA w/updated descriptor(s)
     esp_rom_delay_us(100);              // Must 'bake' a moment before...
     LCD_CAM.lcd_user.lcd_start = 1;        // Trigger LCD DMA transfer
@@ -419,6 +450,8 @@
 
   void Bus_Parallel16::dma_transfer_stop()
   {
+        _dma_running = false;
+        _flip_target = 0;
 
         LCD_CAM.lcd_user.lcd_reset = 1;        // Trigger LCD DMA transfer
         LCD_CAM.lcd_user.lcd_update = 1;        // Trigger LCD DMA transfer
@@ -434,19 +467,46 @@
     if ( back_buffer_id == 1) // change across to everything 'b''
     {
        _dmadesc_b[_dmadesc_count-1].next =  (dma_descriptor_t *) &_dmadesc_b[0];  // setup loop     
-       _dmadesc_a[_dmadesc_count-1].next =  (dma_descriptor_t *) &_dmadesc_b[0];  // flip across    
+       _dmadesc_a[_dmadesc_count-1].next =  (dma_descriptor_t *) &_dmadesc_b[0];  // flip across
+       _flip_target = (intptr_t)&_dmadesc_b[0];
     }
     else
     {
        _dmadesc_a[_dmadesc_count-1].next =  (dma_descriptor_t *) &_dmadesc_a[0];  // setup loop    
-       _dmadesc_b[_dmadesc_count-1].next =  (dma_descriptor_t *) &_dmadesc_a[0];  // flip across         
+       _dmadesc_b[_dmadesc_count-1].next =  (dma_descriptor_t *) &_dmadesc_a[0];  // flip across
+       _flip_target = (intptr_t)&_dmadesc_a[0];
     }
-/*   
-    previousBufferFree = false;  
-    while (!previousBufferFree);
-*/
-    
+
   } // end flip
+
+  // PATTERNFLOW ADDITION (not upstream). The wait upstream left commented out
+  // in the flip above, kept apart from it so that only a caller about to
+  // write the retired buffer pays for it.
+  bool Bus_Parallel16::wait_for_flip(uint32_t timeout_ms)
+  {
+    // Eight waits in a row with no interrupt means there is none to wait
+    // for. From then on this returns at once and the caller is where it was
+    // before the wait existed.
+    if (!_double_dma_buffer || !_flip_sem || !_dma_running || _flip_misses >= 8) return true;
+
+    const intptr_t want = _flip_target;
+    if (want == 0 || _chain_entered == want) return true;
+
+    xSemaphoreTake(_flip_sem, 0);   // a give left over from a wait that timed out
+    _flip_waiting = true;
+    // The interrupt writes _chain_entered and then reads _flip_waiting, on
+    // whichever core registered it. This stores one and loads the other, so
+    // the store has to be out of the write buffer first.
+    __sync_synchronize();
+    bool heard = true;
+    if (_chain_entered != want && _dma_running)
+    {
+      heard = xSemaphoreTake(_flip_sem, pdMS_TO_TICKS(timeout_ms)) == pdTRUE;
+    }
+    _flip_waiting = false;
+    _flip_misses = heard ? 0 : (uint8_t)(_flip_misses + 1);
+    return heard;
+  }
 
 
 #endif

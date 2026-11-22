@@ -43,6 +43,7 @@
 #include <WiFi.h>
 
 #include "../config.h"
+#include "core_canvas.h"
 #include "core_display.h"
 
 // Owned by the sketch (K1 longpress UI + NVS). Sleep drives the panel to 0 and
@@ -104,6 +105,7 @@ inline void blankBothBuffers() {
 inline void enter() {
   if (sleeping) return;
 
+  PFCanvas::settle();
   blankBothBuffers();
   if (dma_display) {
     dma_display->setBrightness8(0);

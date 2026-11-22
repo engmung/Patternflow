@@ -687,6 +687,26 @@ public:
 	
   }
 
+  // PATTERNFLOW ADDITION (not upstream). flipDMABuffer() returns before the
+  // swap takes effect, and the buffer it retired stays on the panel until the
+  // DMA finishes its pass, up to one refresh later. This blocks until then.
+  // Call it before the first write to the back buffer after a flip. A frame
+  // that took longer than a refresh to draw does not wait at all. False when
+  // the swap was not heard of in time (the caller writes anyway). On a target
+  // whose bus cannot tell, it returns true at once.
+  inline bool waitForFlip()
+  {
+    if (!m_cfg.double_buff)
+    {
+      return true;
+    }
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+    return dma_bus.wait_for_flip();
+#else
+    return true;
+#endif
+  }
+
   /**
    * @param uint8_t b - 8-bit brightness value
    */
