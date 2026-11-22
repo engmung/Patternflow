@@ -21,6 +21,18 @@
 // delta accumulation differently per pattern (the scaffold does it once).
 //
 // Composite math mirrors compositor.ts / flatten.ts — keep the three in sync.
+// The header has no divide in its pixel loop. On the S3 a float divide by
+// anything but a constant power of two is a call into __divsf3, and the
+// scaffold made one for every paint layer on every pixel, three more in
+// multiply and screen, and one in a code mask's test. A byte over 255 comes
+// from a 256-entry table the compiler works out (OVER_255), and the mask
+// compares with both sides times 255.
+//
+// Multiplying by 1.0f / 255.0f is shorter and is not the same number. In
+// screen it leaves an exact half just under itself, and the header then rounds
+// down where the preview rounds up: textExport.test.ts's stacks at 50% and 25%
+// went from one LED a level off the preview to 160. The table holds the
+// divide's own quotients.
 
 import {
   PATTERN_MATRIX_HEIGHT,
@@ -32,9 +44,26 @@ import type { MatrixSize } from "@/lib/pattern/matrix";
 import { codeUsesValueField } from "@/lib/pattern/ramp";
 import { KNOBS_ANNOTATION_RE } from "./annotations";
 import { exportStack } from "./compositor";
+import { RAMP_LUT_PLACEHOLDER, bakedRampLut, rampUse } from "./cppPrompt";
+import {
+  BUTTONS_RULE,
+  DO_NOT_REIMPLEMENT,
+  HELPER_SIGNATURES_INTRO,
+  MEMORY_FIXED_STATE,
+  MEMORY_HEADING,
+  MEMORY_STATICS,
+  MEMORY_TABLES_INIT,
+  NAN_RULES,
+  NO_PANEL_TABLES,
+  WALL_TIME_RULE,
+  expensiveMath,
+  helperSignatures,
+  macroCollisions,
+  performanceRules,
+} from "./cppRules";
 import { rampStateToHarness } from "./engine";
 import { TEXT_EFFECT_RATE, activeTextEffect, textEffectPeriod, textEffectSource, type ActiveTextEffect } from "./textEffects";
-import { isRasterLayer, type CodeLayer, type KnobRange, type Layer, type RampLayer, type TextLayer, type TextSource } from "./types";
+import { isRasterLayer, type CodeLayer, type KnobRange, type Layer, type RampLayer, type RampState, type TextLayer, type TextSource } from "./types";
 
 // ── helpers ──
 
@@ -114,8 +143,28 @@ function byteRows(values: number[], perRow: number, indent: string): string {
   return rows.join(",\n");
 }
 
-function lutRows(layer: RampLayer): string {
-  const lut = buildRampLUTRGBA(rampStateToHarness(layer.ramp));
+const rampLut = (layer: RampLayer) => buildRampLUTRGBA(rampStateToHarness(layer.ramp));
+
+/**
+ * A ramp taken twice: what the preview shows for a value field on a layer with
+ * recolor on. display.setValue colours v with ramp[v], and the recolor pass
+ * that follows every draw() (lib/pattern/harness.ts, renderFrame) sends each
+ * written pixel through the ramp again by the luminance of that colour. An
+ * entry with no alpha stays as it is: the pass skips a pixel whose alpha is 0.
+ * Worked out here in the preview's own doubles, so the header looks it up once.
+ */
+export function rampTwice(lut: Uint8Array): Uint8Array {
+  const out = new Uint8Array(lut.length);
+  for (let i = 0; i < 256; i++) {
+    const j = i * 4;
+    const from =
+      lut[j + 3] === 0 ? j : Math.round(0.2126 * lut[j] + 0.7152 * lut[j + 1] + 0.0722 * lut[j + 2]) * 4;
+    out.set(lut.subarray(from, from + 4), j);
+  }
+  return out;
+}
+
+function lutRows(lut: Uint8Array): string {
   const entries: string[] = [];
   for (let i = 0; i < 256; i++) {
     entries.push(`{${lut[i * 4]},${lut[i * 4 + 1]},${lut[i * 4 + 2]},${lut[i * 4 + 3]}}`);
@@ -129,6 +178,13 @@ function lutRows(layer: RampLayer): string {
 
 const blendCode = (blend: Layer["blend"]) =>
   blend === "add" ? 1 : blend === "multiply" ? 2 : blend === "screen" ? 3 : 0;
+
+// The firmware keeps a pattern's name in MODULE_NAME_BYTES = 40
+// (firmware/patternflow/pattern_registry.h): 39 characters and the NUL. A show
+// finds its pattern by NAME, compared whole. Until November 2026 the scaffold
+// cut NAME at 24, so a 30-character name went out six short of the show's cue
+// for it and the show found nothing.
+const NAME_CHARS = 39;
 
 export const SLOT_BEGIN = (i: number) => `// >>> LAYER ${i} TRANSLATION BEGIN <<<`;
 const SLOT_END = (i: number) => `// >>> LAYER ${i} TRANSLATION END <<<`;
@@ -239,7 +295,7 @@ ${stack.map((layer, i) => `//   L${i}. ${layer.name.replace(/\n/g, " ")} (${laye
 
 namespace ${ns} {
 
-const char* NAME = "${literalText(name).slice(0, 24)}";
+const char* NAME = "${literalText(name).slice(0, NAME_CHARS)}";
 const char* const KNOB_LABELS[4] = {${knobLabels.map((label) => `"${literalText(label).slice(0, 14)}"`).join(", ")}};
 // Knobs run through PFParams: the MQTT absolute bus (Director / Show
 // manager, 0..1000) can pin any of them deterministically.
@@ -307,7 +363,7 @@ constexpr int L${index}_LEAD = ${text.width - source.x};${
         effect === "ramp"
           ? `
 static const uint8_t L${index}_RAMP[256][4] = {
-${lutRows(text)}
+${lutRows(rampLut(text))}
 };`
           : ""
       }`);
@@ -322,22 +378,45 @@ ${byteRows(rle, 20, "  ")}
 };`);
       continue;
     }
+    // Recolor used to be a second walk over the layer's buffer after draw():
+    // 32 KB of PSRAM read and written again every frame. It happens at the
+    // write now. A colour takes one lookup by its luminance, and a value
+    // takes one lookup in the ramp taken twice (rampTwice has why).
+    const lut = rampLut(layer);
     parts.push(`
 // ── L${index} "${layer.name.replace(/\n/g, " ")}": ramp LUT (RGBA, alpha included — baked by Pattern Lab, copy-proof) ──
 static const uint8_t L${index}_RAMP[256][4] = {
-${lutRows(layer)}
-};
+${lutRows(lut)}
+};${
+      layer.recolor
+        ? `
+// Recolor is on, so the preview sends each pixel this layer writes through the
+// ramp by its luminance. A value's ramp colour goes the same way, a second
+// time: entry i here is L${index}_RAMP[luminance of L${index}_RAMP[i]], and
+// entry i as it was where its alpha is 0.
+static const uint8_t L${index}_RAMP_TWICE[256][4] = {
+${lutRows(rampTwice(lut))}
+};`
+        : ""
+    }
 static inline void L${index}_setValue(int x, int y, float v) {
   if ((unsigned)x >= (unsigned)FRAME_W || (unsigned)y >= (unsigned)FRAME_H) return;
   if (!(v > 0.0f)) v = 0.0f; else if (v > 1.0f) v = 1.0f;
-  const uint8_t* c = L${index}_RAMP[(int)(v * 255.0f + 0.5f)];
+  const uint8_t* c = L${index}_RAMP${layer.recolor ? "_TWICE" : ""}[(int)(v * 255.0f + 0.5f)];
   uint8_t* p = layerBuf[${index}] + (((size_t)y * FRAME_W + x) << 2);
   p[0] = c[0]; p[1] = c[1]; p[2] = c[2]; p[3] = c[3];
 }
 static inline void L${index}_setPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
   if ((unsigned)x >= (unsigned)FRAME_W || (unsigned)y >= (unsigned)FRAME_H) return;
   uint8_t* p = layerBuf[${index}] + (((size_t)y * FRAME_W + x) << 2);
-  p[0] = r; p[1] = g; p[2] = b; p[3] = 255;
+${
+      layer.recolor
+        ? `  int lum = (int)(0.2126f * r + 0.7152f * g + 0.0722f * b + 0.5f);
+  if (lum > 255) lum = 255;
+  const uint8_t* c = L${index}_RAMP[lum];
+  p[0] = c[0]; p[1] = c[1]; p[2] = c[2]; p[3] = c[3];`
+        : `  p[0] = r; p[1] = g; p[2] = b; p[3] = 255;`
+    }
 }`);
   }
 
@@ -385,12 +464,7 @@ ${SLOT_END(index)}`);
   const layerSetups = codeLayers.map(({ index }) => `  L${index}::setup();`).join("\n");
   const layerUpdates = codeLayers.map(({ index }) => `  L${index}::update(dt, input);`).join("\n");
   const layerDraws = codeLayers
-    .map(({ layer, index }) => {
-      const recolor = layer.recolor
-        ? `\n  recolorBuffer(layerBuf[${index}], L${index}_RAMP);`
-        : "";
-      return `  memset(layerBuf[${index}], 0, (size_t)PIX_N * 4);\n  L${index}::draw();${recolor}`;
-    })
+    .map(({ index }) => `  memset(layerBuf[${index}], 0, (size_t)PIX_N * 4);\n  L${index}::draw();`)
     .join("\n");
 
   parts.push(`
@@ -404,25 +478,26 @@ static void rleDecode(const uint8_t* rle, size_t len, uint8_t* out, size_t cap =
   }
 }
 
+// i / 255 for each of the 256 bytes, worked out by the compiler. On the S3 a
+// float divide by 255 is a call into __divsf3, and the compositor made one for
+// every paint layer on every pixel, and three more in multiply and screen. It
+// reads the quotient here now. These are the quotients the divide gave, so a
+// pixel's alpha comes out to the bit as it did.
+struct ByteOver255 {
+  float v[256];
+  constexpr ByteOver255() : v() { for (int i = 0; i < 256; i++) v[i] = i / 255.0f; }
+};
+static constexpr ByteOver255 OVER_255{};
+
 // Binary mask test — identical to the Pattern Lab preview: pixel art is "on"
 // where something was drawn (alpha >= 0.5); code layers where ramp-colored
-// luminance x alpha crosses 0.5.
+// luminance x alpha crosses 0.5. The code layer's test has both sides times
+// 255, alpha as its byte against 127.5 x 255, so it divides nothing.
 static inline bool maskOn(const uint8_t* p, bool pixelArt, bool invert) {
   bool on;
   if (pixelArt) on = p[3] >= 128;
-  else on = (0.2126f * p[0] + 0.7152f * p[1] + 0.0722f * p[2]) * (p[3] / 255.0f) >= 127.5f;
+  else on = (0.2126f * p[0] + 0.7152f * p[1] + 0.0722f * p[2]) * p[3] >= 127.5f * 255.0f;
   return invert ? !on : on;
-}
-
-static void recolorBuffer(uint8_t* buf, const uint8_t lut[256][4]) {
-  for (int i = 0; i < PIX_N; i++) {
-    uint8_t* p = buf + (size_t)i * 4;
-    if (p[3] == 0) continue;
-    int lum = (int)(0.2126f * p[0] + 0.7152f * p[1] + 0.0722f * p[2] + 0.5f);
-    if (lum > 255) lum = 255;
-    const uint8_t* c = lut[lum];
-    p[0] = c[0]; p[1] = c[1]; p[2] = c[2]; p[3] = c[3];
-  }
 }
 
 ${effects.size > 0 ? TEXT_FX_CPP : ""}void setup() {
@@ -465,20 +540,20 @@ ${effectDraws ? `${effectDraws}\n` : ""}${layerDraws}
         }
         if (hidden) continue;
         const uint8_t* p = layerBuf[G_LAYER[gi]] + j;
-        const float a = (p[3] / 255.0f) * G_OPACITY[gi];
+        const float a = OVER_255.v[p[3]] * G_OPACITY[gi];
         if (a <= 0.0f) continue;
         const float sr = p[0], sg = p[1], sb = p[2], inv = 1.0f - a;
         switch (G_BLEND[gi]) {
           case 1: cr += sr * a; cg += sg * a; cb += sb * a; break;
           case 2:
-            cr = cr * inv + (cr * sr / 255.0f) * a;
-            cg = cg * inv + (cg * sg / 255.0f) * a;
-            cb = cb * inv + (cb * sb / 255.0f) * a;
+            cr = cr * inv + (cr * OVER_255.v[p[0]]) * a;
+            cg = cg * inv + (cg * OVER_255.v[p[1]]) * a;
+            cb = cb * inv + (cb * OVER_255.v[p[2]]) * a;
             break;
           case 3:
-            cr = cr * inv + (255.0f - (255.0f - cr) * (255.0f - sr) / 255.0f) * a;
-            cg = cg * inv + (255.0f - (255.0f - cg) * (255.0f - sg) / 255.0f) * a;
-            cb = cb * inv + (255.0f - (255.0f - cb) * (255.0f - sb) / 255.0f) * a;
+            cr = cr * inv + (255.0f - (255.0f - cr) * OVER_255.v[255 - p[0]]) * a;
+            cg = cg * inv + (255.0f - (255.0f - cg) * OVER_255.v[255 - p[1]]) * a;
+            cb = cb * inv + (255.0f - (255.0f - cb) * OVER_255.v[255 - p[2]]) * a;
             break;
           default:
             cr = cr * inv + sr * a;
@@ -622,9 +697,14 @@ function buildLayerPrompt({
     )
     .join("\n");
 
-  const frameSection = isPanelFrame
-    ? `- The frame equals the panel (${matrix.width} × ${matrix.height}), so PFTables IS available: for radius/angle from the FIXED center call PFTables::init() once in setup() and read PFTables::rT[y * PANEL_RES_W + x] / PFTables::thetaT[...] in draw() — never per-pixel sqrtf/atan2f for a fixed center.`
-    : `- This composition's frame is ${matrix.width} × ${matrix.height}, which is NOT the panel's ${PATTERN_MATRIX_WIDTH} × ${PATTERN_MATRIX_HEIGHT}. Do NOT use PFTables (its tables are indexed by the panel grid) and do not call PFTables::init(). Compute radius with sqrtf and angle with PFMath::fastAtan2 from the frame centre (FRAME_W * 0.5f, FRAME_H * 0.5f). The scaffold owns PFCanvas::setFrame — never call it yourself.`;
+  // The scaffold's own includes, as a sentence: a layer writes none.
+  const included = ["src/core_math.h", "src/core_color.h", "src/core_noise.h", "src/core_mem.h"];
+  if (isPanelFrame) included.push("src/core_tables.h");
+  const includedList = `${included.slice(0, -1).join(", ")} and ${included[included.length - 1]}`;
+
+  const frameNote = isPanelFrame
+    ? `The frame equals the panel (${matrix.width} × ${matrix.height}), so PFTables IS available and the first row of the table applies.`
+    : `This composition's frame is ${matrix.width} × ${matrix.height}, which is NOT the panel's ${PATTERN_MATRIX_WIDTH} × ${PATTERN_MATRIX_HEIGHT}. ${NO_PANEL_TABLES} The scaffold owns PFCanvas::setFrame — never call it yourself.`;
 
   return `Translate ONE LAYER of a Patternflow layer-stack composition from JavaScript to C++ for the ESP32-S3 firmware.
 
@@ -650,6 +730,10 @@ ${
     usesValueField
       ? `  This layer is a VALUE FIELD: the JS draws with display.setValue(x, y, v). Use ${L}_setValue exclusively and write NO color code whatsoever — no HSV, no palettes, no LUTs of your own. The ramp is already baked.`
       : `  This layer draws RGB directly: translate display.setPixel(x, y, r, g, b) calls to ${L}_setPixel(x, y, r, g, b).`
+  }${
+    layer.recolor
+      ? `\n  Recolor is on for this layer. The scaffold applies it inside these two calls, so pass the pattern's own values and write no luminance or ramp code.`
+      : ""
   }
 - Loop over FRAME_W × FRAME_H (scaffold constants). Coordinates are logical — never rotate, mirror, offset, or letterbox them, never call PFCanvas:: anything, never call present().
 - Pixels you don't write stay transparent for the compositor — if the JS clears to black each frame implicitly by writing every pixel, keep writing every pixel; if it intentionally leaves pixels unwritten, leave them unwritten.
@@ -657,40 +741,41 @@ ${
     knobVal[i]    // absolute value — identical to input.knobValues[i] in the JS
     knobNorm[i]   // the same knob normalized 0..1 — identical to input.knobNormalized[i]
   Do NOT touch input.knobDeltas and do NOT constrain/accumulate knob state yourself.
-- Buttons map 1:1: JS input.btnPressed[i] / input.btnHeld[i] are the same fields on the C++ InputFrame (edge vs level), read them in update(). Never consume long-press.
+${BUTTONS_RULE}
+${WALL_TIME_RULE}
+- input reaches a layer in update() and nowhere else, so read the buttons and the time there.
 - JS params.* state becomes namespace statics. The JS draw(display, params, time) \`time\` argument does not exist here: keep your own time accumulator(s) in update() and wrap them (see Performance).
 
 Shared knob reference (labels and current tuning):
 ${knobLines}
 
-## Memory rules — big buffers must never be static arrays
+## Helpers
+The scaffold already includes ${includedList}, so write no #include. ${HELPER_SIGNATURES_INTRO}
+
+${helperSignatures({ params: false, tables: isPanelFrame })}
+
+${macroCollisions(`prefix your constants with ${L}_ (e.g. ${L}_TWO_PI, ${L}_SPEED_STEP)`)}
+
+${MEMORY_HEADING}
+${MEMORY_STATICS}
+
 - Any per-pixel buffer (trail map, glow accumulator — anything sized by FRAME_W * FRAME_H) must be a POINTER allocated once in setup() with PFMem::allocFloats(count) (PSRAM-first, zeroed):
 
     static float* trail = nullptr;
     void setup() { if (!trail) trail = PFMem::allocFloats(FRAME_W * FRAME_H); }
 
 - Guard update() with \`if (!trail) return;\` and draw() with \`if (!trail) return;\` so a failed allocation degrades to a blank layer (the scaffold still presents).
-- Fixed-size state (particle arrays, lookup tables of any shape) stays as plain statics — up to about 32 KB total per layer is comfortable, and a table costs memory without costing frame rate. Prefer precomputing anything that depends only on x, y or a constant in setup() over recomputing it per pixel.
+${MEMORY_FIXED_STATE}${isPanelFrame ? `\n${MEMORY_TABLES_INIT}` : ""}
 
-## DO NOT reimplement existing helpers
-- DO NOT write your own HSV→RGB. Call PFColor::hsvToRgb(h01, s01, v01, r8, g8, b8) — h is 0..1, outputs are uint8_t&.
-- DO NOT write your own sin LUT or fast-sin. Call PFMath::buildSinLUT() once in setup(); use PFMath::fastSin / fastCos in draw().
-- DO NOT write your own Perlin/fractal noise. Use PFNoise::valueNoise2D / perlin2D / fractal2D.
-- DO NOT translate fract(sin(x*127.1+y*311.7)*43758.5453)-style hashes literally, and NEVER build a hash from PFMath::fastSin — use PFNoise::cellHash(gx, gy) (optional int seed).
+${DO_NOT_REIMPLEMENT}
 
-## Expensive math — pick the tool by situation
-${frameSection}
-- Angle from a MOVING center: PFMath::fastAtan2(dy, dx). Never atan2f in the pixel loop.
-- Distance from a MOVING center: sqrtf(dx*dx + dy*dy) — cheap on the S3 FPU.
-- powf(v, CONSTANT): v*v for squares; otherwise bake a LUT in setup() with PFColor::buildPowLUT(exp, lut) / buildPowLUTf(exp, lutf) and index it in draw().
-- powf(v, e) with varying e: PFMath::fastPow(v, e) (returns 0 for v <= 0 — branch explicitly if the JS relied on Infinity-clamping).
-- sin/cos inside the pixel loop: PFMath::fastSin / fastCos only.
-- Macro collisions: do NOT define your own PI, TWO_PI, HALF_PI, min, max, abs, sq, round, constrain, MAX_HUE, MAX_SPEED, SPEED_STEP, MAX_FREQ, FREQ_STEP. Use existing PI/TWO_PI; prefix your constants with ${L}_.
+${expensiveMath({ panelTables: isPanelFrame })}
 
-## Performance
-- Hoist anything depending only on time, row, or knobs out of the inner pixel loop.
-- Wrap every time accumulator at its period (TWO_PI for integer sin multipliers; a common multiple otherwise; PFMath::fract for hue drifts). The device runs for days — an unbounded t += dt is a bug even if it looks fine.
-- Preserve the JS's visual character: value bands, thresholds, distance-driven hue live in the local rules — keep them.
+${frameNote}
+
+${performanceRules({ fullBrightness: false })}
+
+${NAN_RULES}
 
 ## Self-check before output
 1. Exactly one namespace ${L} with setup/update/draw defined, nothing outside it?
@@ -750,6 +835,74 @@ export function cleanPastedHeader(pasted: string): string | null {
     .slice(start, fence < 0 ? lines.length : fence)
     .join("\n")
     .trim();
+}
+
+// The placeholder as a model writes it: a comment by itself on a line. Words
+// after the token are let through, and so is the block-comment spelling.
+const PLACEHOLDER_LINE = new RegExp(
+  String.raw`^([ \t]*)(?:\/\/|\/\*)[ \t]*${RAMP_LUT_PLACEHOLDER.replace(/^\/\/\s*/, "")}\b[^\r\n]*`,
+  "m",
+);
+// A table the answer wrote for itself, whatever is in it:
+// static const uint8_t RAMP_LUT[256][3] = { ... };
+const OWN_TABLE =
+  /^([ \t]*)(?:(?:static|const|constexpr|inline)\s+)*(?:uint8_t|unsigned\s+char|byte)\s+(?:PROGMEM\s+)?RAMP_LUT\s*\[\s*256\s*\]\s*\[\s*3\s*\]\s*(?:PROGMEM\s*)?=\s*\{[\s\S]*?\}\s*;/gm;
+// The name declared in any other shape, a flat [768] for one.
+const OTHER_TABLE =
+  /\b(?:uint8_t|unsigned\s+char|byte|u?int(?:16|32)?_t|int|float|char)\s+(?:PROGMEM\s+)?RAMP_LUT\s*\[/;
+const NAMESPACE_OPEN = /^[ \t]*namespace\s+[A-Za-z_]\w*\s*\{[^\r\n]*/m;
+
+/**
+ * Put the ramp table into a pasted one-layer header. The conversion prompt
+ * asks for one placeholder line where the table goes (cppPrompt.ts), and the
+ * table written here is the one the prompt used to paste: bakedRampLut, every
+ * byte. Three answers come back:
+ *
+ *   the placeholder is there    the table takes its place
+ *   the answer wrote a table    RAMP_LUT[256][3] = { ... } is replaced whole,
+ *                               cut short or not: the model never saw the bytes
+ *   neither, and it reads one   the table goes in where the namespace opens
+ *
+ * A pattern that reads no ramp comes back as it was pasted. So does a header
+ * that never names RAMP_LUT: a table nothing indexes is 768 bytes of nothing.
+ * And so does one that declares RAMP_LUT in a shape this does not know. A
+ * second definition would stop the build, and the code indexing the first
+ * would still be wrong.
+ */
+export function injectRampLut(
+  header: string,
+  pattern: { code: string; ramp: RampState; recolor?: boolean; forceRgb?: boolean },
+): string {
+  if (!rampUse(pattern)) return header;
+  const eol = header.includes("\r\n") ? "\r\n" : "\n";
+  const table = (indent: string) =>
+    bakedRampLut(pattern.ramp)
+      .split("\n")
+      .map((line) => indent + line)
+      .join(eol);
+
+  // With the placeholder there, a table the answer wrote as well would be a
+  // second definition, so those go first.
+  const cleared = header.replace(OWN_TABLE, "");
+  const mark = PLACEHOLDER_LINE.exec(cleared);
+  if (mark) {
+    return cleared.slice(0, mark.index) + table(mark[1]) + cleared.slice(mark.index + mark[0].length);
+  }
+  if (cleared !== header) {
+    // The answer's first table is where this one goes. A second would not
+    // have compiled, so it goes too.
+    let placed = false;
+    return header.replace(OWN_TABLE, (_m, indent: string) => {
+      if (placed) return "";
+      placed = true;
+      return table(indent);
+    });
+  }
+  if (!/\bRAMP_LUT\b/.test(header) || OTHER_TABLE.test(header)) return header;
+  const opened = NAMESPACE_OPEN.exec(header);
+  if (!opened) return header;
+  const at = opened.index + opened[0].length;
+  return header.slice(0, at) + eol + table("") + header.slice(at);
 }
 
 /** Swap pasted layer units into their marked slots. Missing units keep stubs. */
