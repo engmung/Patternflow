@@ -188,6 +188,22 @@ struct PFFeature {
   bool (*handleSelectInput)(InputFrame&);
   bool (*drawSelect)();
   void (*decorateSelect)();
+
+  // Whether drawOverlay is going to draw on this frame. Optional, and only
+  // read on a feature that has a drawOverlay.
+  //
+  // A frame nothing is drawn over can be pushed to the panel by the other
+  // core while the loop starts on the next one (src/core_canvas.h, "The push
+  // to the panel"), and a slow pattern gets 2 to 3.6 ms a frame back from
+  // that. An overlay is drawn on the panel after the pattern has presented,
+  // so a frame that will carry one has to stay on the loop task. Answer false
+  // on the frames where drawOverlay would return without drawing: the
+  // weather clock while it is switched off, the scheduler's face on anything
+  // but Black. A feature that has a drawOverlay and leaves this null is taken
+  // to draw on every frame, which is always correct and is never handed over.
+  // It is the last member, so a descriptor written before it existed leaves
+  // it null.
+  bool (*overlayActive)(const PFFeatureFrame&);
 };
 
 // ── Legacy name shim (2026-08-30) ───────────────────────────────────────

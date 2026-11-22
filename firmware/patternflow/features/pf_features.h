@@ -149,6 +149,14 @@ inline bool takePattern(int* idx, bool* isPersonsChoice = nullptr) {
   return false;
 }
 
+inline bool overlayActive(const PFFeatureFrame& frame) {
+  for (size_t i = 0; i < PF_FEATURE_COUNT; i++) {
+    if (!PF_FEATURES[i]->drawOverlay) continue;
+    if (!PF_FEATURES[i]->overlayActive || PF_FEATURES[i]->overlayActive(frame)) return true;
+  }
+  return false;
+}
+
 inline void drawOverlay(const PFFeatureFrame& frame) {
   for (size_t i = 0; i < PF_FEATURE_COUNT; i++) {
     if (PF_FEATURES[i]->drawOverlay) PF_FEATURES[i]->drawOverlay(frame);

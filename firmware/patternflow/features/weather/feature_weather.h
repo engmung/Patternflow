@@ -51,13 +51,18 @@ inline void fillInput(InputFrame& input) {
 // Optional HH:MM:SS corner clock (NTP + /weather UTC offset). Drawn after
 // the pattern: white glyphs with a 1px black outline so the pattern shows
 // through. Portrait, top-right (panel stood on end).
-inline void drawOverlay(const PFFeatureFrame& frame) {
-  if (!PatternflowWeather::clockOverlayEnabled()) return;
-  if (!PatternflowWeather::timeSynced()) return;
-  if (frame.chromeVisible) return;
+inline bool overlayActive(const PFFeatureFrame& frame) {
+  if (!PatternflowWeather::clockOverlayEnabled()) return false;
+  if (!PatternflowWeather::timeSynced()) return false;
+  if (frame.chromeVisible) return false;
   // The Weather pattern draws its own clock, and Black owns the panel when
   // it is showing a face.
-  if (frame.patternName && strcmp(frame.patternName, "Weather") == 0) return;
+  if (frame.patternName && strcmp(frame.patternName, "Weather") == 0) return false;
+  return true;
+}
+
+inline void drawOverlay(const PFFeatureFrame& frame) {
+  if (!overlayActive(frame)) return;
 
   char buf[12];
   snprintf(buf, sizeof(buf), "%02d:%02d:%02d",
@@ -100,6 +105,11 @@ inline const PFFeature descriptor = {
     "Weather",     // navLabel
     "Clock, timezone and local readings — can drive the knobs from "
     "the sky outside.",
+    nullptr,       // composeFrame
+    nullptr,       // handleSelectInput
+    nullptr,       // drawSelect
+    nullptr,       // decorateSelect
+    overlayActive,
 };
 
 }  // namespace PFFeatureWeather
