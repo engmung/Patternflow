@@ -24,10 +24,17 @@
 // where its input came from. What the synthetic source must not do is move a
 // panel's knobs; the feature's fillInput sees to that.
 //
-// Deliberately naive: a plain radix-2 complex transform with the signal in
-// the real lane. A real-input FFT halves this and esp-dsp's assembly version
-// halves it again, so whatever this costs is an upper bound on the honest
-// number — the useful direction to be wrong in.
+// It began deliberately naive: a plain radix-2 complex transform, 512 points,
+// with the signal in the real lane, so that whatever it cost was an upper
+// bound on the honest number. Since 2026-11 it is the real-input form. The
+// even samples go in the real lane and the odd ones in the imaginary lane of
+// one 256-point transform, and a pass afterwards takes the two apart. The
+// time was never the problem: a window's transform and fold went from 500 to
+// 388 us on a board. The memory was. Half the imaginary lane, half the
+// bit-reversal table and the whole window table are gone, 2.3 KB of internal
+// RAM net of the magnitudes it now keeps, and an Audio build has about 38 KB
+// of that free. esp-dsp's assembly version would halve the time again and is
+// still not needed.
 //
 // License: MIT
 // ═══════════════════════════════════════════════════════════
@@ -43,15 +50,45 @@ namespace PFAudioFFT {
 
 // 512 points at 16 kHz is 32 ms of audio — long enough to resolve a bass
 // note, short enough that a hi-hat still lands in the frame it happened in.
+// M is the transform that actually runs, half of it.
 constexpr int N = 512;
-constexpr int LOG2N = 9;
+constexpr int M = N / 2;
+constexpr int LOG2M = 8;
 constexpr float SAMPLE_HZ = 16000.0f;
 
-inline float re[N], im[N];
-inline float hann[N];
-inline float twCos[N / 2], twSin[N / 2];
-inline uint16_t brev[N];
+// re[] takes the window as it is read, all N samples, and is then packed in
+// place: the even samples stay in re[0..M-1] and the odd ones move to im[].
+// mag[k] is |X[k]| of the window last analysed. fold() and spectrum() both
+// read it, where each used to take its own square roots, and spectrum() reads
+// it from the HTTP task while the next window is being written. The worst
+// that does is a picture with some bins one window newer than the rest.
+inline float re[N];
+inline float im[M];
+inline float mag[M];
+inline float twCos[M], twSin[M];
+inline uint16_t brev[M];
 inline bool ready = false;
+
+// A coarse, log-spaced view of the spectrum for /audio-in to draw. Log
+// because that is how the frequencies people care about are spaced: a linear
+// picture spends three quarters of its width above 2 kHz, where almost
+// nothing in music lives, and squeezes every bass decision into the left
+// centimetre. The extension's spectrum is log for the same reason.
+//
+// Buckets, not bins: 256 numbers ten times a second on a single-connection
+// web server is not worth it, and nobody is reading a 31 Hz bin off a
+// 600 px canvas. This is a picture to aim at, and the band edges it is used
+// to set are exact regardless.
+// 64, the editor's contract (one bucket count on every path - the extension
+// computes the same 64 from tab audio). Was 40 when the old strip page drew
+// it into a 600 px canvas.
+//
+// A bucket's edges never move, so begin() works them out once: specK0 is its
+// first bin and specK1 the one past its last. spectrum() used to call powf
+// 128 times a poll to find them again.
+constexpr int SPEC_BUCKETS = 64;
+inline uint16_t specK0[SPEC_BUCKETS];
+inline uint16_t specK1[SPEC_BUCKETS];
 
 // What a pattern would actually consume. Smoothed, because raw band energy
 // flickers at 60 Hz and reads as noise on a panel.
@@ -80,35 +117,57 @@ inline uint32_t seen = 0;
 // Defined below, next to the fill it feeds.
 inline void buildSource();
 
+// Hann, times 2: the window kills the rectangular-window leakage that was
+// smearing strong bass into the high bands (there was no window at all
+// before), and the factor 2 undoes its coherent gain of 0.5 so band
+// levels keep the scale everything downstream was tuned against.
+//
+// The denominator is N, not N - 1. That is the PERIODIC Hann, and for a
+// stream analysed one hop after another it is the correct one: its DFT is
+// exactly three non-zero bins, so a constant input lands entirely in bin 0
+// and its neighbours and leaks nowhere else. The symmetric window (N - 1)
+// that was here does leak, and it broke inputIsDeadRail() below - see the
+// measurement in that comment. Computed over the shipped band edges with a
+// constant rail: symmetric gives bands 0.0666 / 1.8e-3 / 1.3e-4 / 1.3e-5,
+// three of the four above the 1e-4 threshold; periodic gives ~1e-13 in all
+// four. Mean window gain goes 0.998047 -> 1.000000, so band levels move by
+// 0.2% and the tuning downstream does not notice.
+//
+// It has no table of its own. 1 - cos(2*pi*i/N) is 1 - twCos[i] over the
+// first half and the same values mirrored over the second, and the table
+// that held it was 2 KB.
+inline float hannAt(int i) {
+  if (i < M) return 1.0f - twCos[i];
+  if (i == M) return 2.0f;
+  return 1.0f - twCos[N - i];
+}
+
 inline void begin() {
   if (ready) return;
-  for (int i = 0; i < N / 2; i++) {
+  for (int i = 0; i < M; i++) {
     twCos[i] = cosf(-2.0f * (float)M_PI * i / N);
     twSin[i] = sinf(-2.0f * (float)M_PI * i / N);
   }
-  for (int i = 0; i < N; i++) {
+  for (int i = 0; i < M; i++) {
     int r = 0, x = i;
-    for (int b = 0; b < LOG2N; b++) { r = (r << 1) | (x & 1); x >>= 1; }
+    for (int b = 0; b < LOG2M; b++) { r = (r << 1) | (x & 1); x >>= 1; }
     brev[i] = (uint16_t)r;
   }
-  for (int i = 0; i < N; i++) { re[i] = 0.0f; im[i] = 0.0f; }
-  // Hann, times 2: the window kills the rectangular-window leakage that was
-  // smearing strong bass into the high bands (there was no window at all
-  // before), and the factor 2 undoes its coherent gain of 0.5 so band
-  // levels keep the scale everything downstream was tuned against.
-  //
-  // The denominator is N, not N - 1. That is the PERIODIC Hann, and for a
-  // stream analysed one hop after another it is the correct one: its DFT is
-  // exactly three non-zero bins, so a constant input lands entirely in bin 0
-  // and its neighbours and leaks nowhere else. The symmetric window (N - 1)
-  // that was here does leak, and it broke inputIsDeadRail() below - see the
-  // measurement in that comment. Computed over the shipped band edges with a
-  // constant rail: symmetric gives bands 0.0666 / 1.8e-3 / 1.3e-4 / 1.3e-5,
-  // three of the four above the 1e-4 threshold; periodic gives ~1e-13 in all
-  // four. Mean window gain goes 0.998047 -> 1.000000, so band levels move by
-  // 0.2% and the tuning downstream does not notice.
-  for (int i = 0; i < N; i++)
-    hann[i] = (1.0f - cosf(2.0f * (float)M_PI * i / N));
+  for (int i = 0; i < N; i++) re[i] = 0.0f;
+  for (int i = 0; i < M; i++) { im[i] = 0.0f; mag[i] = 0.0f; }
+
+  const float loHz = PFAudioInMap::MIN_HZ, hiHz = PFAudioInMap::MAX_HZ;
+  const float lg0 = log10f(loHz), lg1 = log10f(hiHz);
+  for (int i = 0; i < SPEC_BUCKETS; i++) {
+    const float a = powf(10.0f, lg0 + (lg1 - lg0) * (float)i / SPEC_BUCKETS);
+    const float b = powf(10.0f, lg0 + (lg1 - lg0) * (float)(i + 1) / SPEC_BUCKETS);
+    int k0 = PFAudioInMap::binOf(a), k1 = PFAudioInMap::binOf(b);
+    if (k1 <= k0) k1 = k0 + 1;      // the low buckets are narrower than a bin
+    if (k1 > M) k1 = M;
+    specK0[i] = (uint16_t)k0;
+    specK1[i] = (uint16_t)k1;
+  }
+
   buildSource();
   // The microphone is NOT started here. It is installed and released by the
   // analysis task as the switch on /audio-in moves, so that a panel with the
@@ -117,16 +176,20 @@ inline void begin() {
 }
 
 inline void transform() {
-  for (int i = 0; i < N; i++) {
+  // z[k] = x[2k] + i x[2k+1], M points, radix 2.
+  for (int i = 0; i < M; i++) {
     int j = brev[i];
     if (j > i) {
       float t = re[i]; re[i] = re[j]; re[j] = t;
       t = im[i]; im[i] = im[j]; im[j] = t;
     }
   }
-  for (int len = 2; len <= N; len <<= 1) {
-    const int half = len >> 1, step = N / len;
-    for (int i = 0; i < N; i += len) {
+  for (int len = 2; len <= M; len <<= 1) {
+    const int half = len >> 1;
+    // The twiddles are the N-point ones, and an M-point transform wants every
+    // second: N / len is that stride.
+    const int step = N / len;
+    for (int i = 0; i < M; i += len) {
       int k = 0;
       for (int j = 0; j < half; j++, k += step) {
         const float c = twCos[k], s = twSin[k];
@@ -139,6 +202,32 @@ inline void transform() {
       }
     }
   }
+
+  // Take the two halves apart. With E and O the transforms of the even and
+  // the odd samples, Z[k] = E[k] + i O[k], and both are those of real input,
+  // so E[k] = (Z[k] + conj Z[M-k]) / 2 and O[k] = (Z[k] - conj Z[M-k]) / 2i.
+  // The N-point bin is X[k] = E[k] + W^k O[k], and bin M - k comes out of the
+  // same pair with the sign turned, so each pass through the loop gives two.
+  // Bins 0 and M/2 pair with themselves. Only the magnitudes are kept.
+  mag[0] = fabsf(re[0] + im[0]);
+  for (int k = 1; k < M / 2; k++) {
+    const int mk = M - k;
+    const float ar = re[k],  ai = im[k];
+    const float br = re[mk], bi = im[mk];
+    const float er = 0.5f * (ar + br);
+    const float ei = 0.5f * (ai - bi);
+    const float or_ = 0.5f * (ai + bi);
+    const float oi  = 0.5f * (br - ar);
+    const float c = twCos[k], s = twSin[k];
+    const float wr = or_ * c - oi * s;
+    const float wi = or_ * s + oi * c;
+    const float xkr = er + wr, xki = ei + wi;
+    const float xmr = er - wr, xmi = ei - wi;
+    mag[k]  = sqrtf(xkr * xkr + xki * xki);
+    mag[mk] = sqrtf(xmr * xmr + xmi * xmi);
+  }
+  const float hr = re[M / 2], hi = im[M / 2];
+  mag[M / 2] = sqrtf(hr * hr + hi * hi);
 }
 
 // Stand-in for a microphone. Built once; each window copies a rotating
@@ -163,17 +252,10 @@ inline void buildSource() {
 // synthetic source when there is not. The fallback is not politeness: this
 // module's whole reason for existing was to measure the cost of the analysis
 // on a board with no mic attached, and that has to keep working.
-//
-// The imaginary lane is zeroed either way - this is a real-input signal in a
-// complex transform, which is the deliberately naive arrangement the header
-// explains.
 inline void fill(uint32_t tick) {
-  if (PFAudioPdm::readWindow(re)) {
-    for (int i = 0; i < N; i++) im[i] = 0.0f;
-    return;
-  }
+  if (PFAudioPdm::readWindow(re)) return;
   const int off = (int)(tick * 37u) % (SRC - N);
-  for (int i = 0; i < N; i++) { re[i] = src[off + i]; im[i] = 0.0f; }
+  memcpy(re, src + off, (size_t)N * sizeof(float));
 }
 
 // Four bands, each over whatever slice of the spectrum it has been given.
@@ -199,11 +281,11 @@ inline void fold() {
     const int lo = PFAudioInMap::binOf(PFAudioInMap::bands[b].hzMin);
     int hi = PFAudioInMap::binOf(PFAudioInMap::bands[b].hzMax);
     if (hi <= lo) hi = lo + 1;
-    if (hi > N / 2) hi = N / 2;
+    if (hi > M) hi = M;
     if (hi <= lo) { bands[b] = 0.0f; continue; }
     float sum = 0.0f;
     for (int k = lo; k < hi; k++)
-      sum += sqrtf(re[k] * re[k] + im[k] * im[k]);
+      sum += mag[k];
     const float v = sum / (float)(hi - lo);
     bands[b] = bands[b] * SMOOTH + v * (1.0f - SMOOTH);
   }
@@ -254,33 +336,14 @@ inline const char* sourceLabel() {
   return inputIsDeadRail() ? "pdm (no mic - data pin idle)" : "pdm";
 }
 
-// A coarse, log-spaced view of the spectrum for /audio-in to draw. Log
-// because that is how the frequencies people care about are spaced: a linear
-// picture spends three quarters of its width above 2 kHz, where almost
-// nothing in music lives, and squeezes every bass decision into the left
-// centimetre. The extension's spectrum is log for the same reason.
-//
-// Buckets, not bins: 256 numbers ten times a second on a single-connection
-// web server is not worth it, and nobody is reading a 31 Hz bin off a
-// 600 px canvas. This is a picture to aim at, and the band edges it is used
-// to set are exact regardless.
-// 64, the editor's contract (one bucket count on every path - the extension
-// computes the same 64 from tab audio). Was 40 when the old strip page drew
-// it into a 600 px canvas.
-constexpr int SPEC_BUCKETS = 64;
-
+// The 64 buckets for /audio-in, from the edges begin() worked out and the
+// magnitudes transform() left. See SPEC_BUCKETS, above.
 inline void spectrum(float* out) {
-  const float loHz = PFAudioInMap::MIN_HZ, hiHz = PFAudioInMap::MAX_HZ;
-  const float lg0 = log10f(loHz), lg1 = log10f(hiHz);
   for (int i = 0; i < SPEC_BUCKETS; i++) {
-    const float a = powf(10.0f, lg0 + (lg1 - lg0) * (float)i / SPEC_BUCKETS);
-    const float b = powf(10.0f, lg0 + (lg1 - lg0) * (float)(i + 1) / SPEC_BUCKETS);
-    int k0 = PFAudioInMap::binOf(a), k1 = PFAudioInMap::binOf(b);
-    if (k1 <= k0) k1 = k0 + 1;      // the low buckets are narrower than a bin
-    if (k1 > N / 2) k1 = N / 2;
+    const int k0 = specK0[i], k1 = specK1[i];
     float sum = 0.0f;
     for (int k = k0; k < k1; k++)
-      sum += sqrtf(re[k] * re[k] + im[k] * im[k]);
+      sum += mag[k];
     out[i] = sum / (float)(k1 - k0);
   }
 }
@@ -300,18 +363,33 @@ inline void analyze(uint32_t tick) {
   // |dc| ~0.94 and a real mic ~0.005, and gaining both before the comparison
   // would push a healthy mic toward the trip point instead of away from it.
   // Gain is microphone-only: the synthetic source is already full-scale.
+  //
+  // The same pass packs the window for the transform, two samples at a time:
+  // 2k stays in re[k] and 2k+1 goes to im[k]. It can be done in place because
+  // re[k] is written only after re[2k] and re[2k+1] have been read.
   const float g = PFAudioPdm::available() ? PFAudioInMap::micGain : 1.0f;
   float pk = 0.0f, sum = 0.0f;
-  for (int i = 0; i < N; i++) {
-    const float a = fabsf(re[i]);
-    if (a > pk) pk = a;
-    sum += re[i];
-    float v = re[i] * g;
-    if (v > 1.0f) v = 1.0f;
-    if (v < -1.0f) v = -1.0f;
+  for (int k = 0; k < M; k++) {
+    const int i0 = k << 1;
+    const int i1 = i0 + 1;
+    const float s0 = re[i0];
+    const float s1 = re[i1];
+    const float a0 = fabsf(s0), a1 = fabsf(s1);
+    if (a0 > pk) pk = a0;
+    if (a1 > pk) pk = a1;
+    sum += s0 + s1;
+
+    float v0 = s0 * g;
+    if (v0 > 1.0f) v0 = 1.0f;
+    else if (v0 < -1.0f) v0 = -1.0f;
+    float v1 = s1 * g;
+    if (v1 > 1.0f) v1 = 1.0f;
+    else if (v1 < -1.0f) v1 = -1.0f;
+
     // Gain saturates BEFORE the window shapes the frame - a clipped loud
     // sample still tapers at the edges, which is the point of the window.
-    re[i] = v * hann[i];
+    re[k] = v0 * hannAt(i0);
+    im[k] = v1 * hannAt(i1);
   }
   rawPeak = pk;
   rawDc = sum / (float)N;
@@ -343,8 +421,8 @@ inline uint32_t avgUs() { return runs ? (uint32_t)(totalUs / runs) : 0; }
 // place that is actually scarce. Internal DRAM: the HUB75 DMA buffers take
 // most of it and the console starts failing below ~10 KB free.
 inline constexpr uint32_t staticBytes() {
-  return sizeof(re) + sizeof(im) + sizeof(twCos) + sizeof(twSin) +
-         sizeof(brev) + sizeof(src);
+  return sizeof(re) + sizeof(im) + sizeof(mag) + sizeof(twCos) + sizeof(twSin) +
+         sizeof(brev) + sizeof(src) + sizeof(specK0) + sizeof(specK1);
 }
 
 }  // namespace PFAudioFFT
