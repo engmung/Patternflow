@@ -342,7 +342,7 @@ export default function CapturePanel() {
     const state = useLabStore.getState();
     try {
       await navigator.clipboard.writeText(
-        buildShaderPrompt(layer.code, matrix, layer.ramp, state.ranges),
+        buildShaderPrompt(layer.code, matrix, layer.ramp, state.ranges, layer.recolor),
       );
       setShaderPromptCopied(true);
       setMessage({

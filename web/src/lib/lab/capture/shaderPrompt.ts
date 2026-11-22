@@ -14,6 +14,7 @@
 // (shaderRamp.ts), so editing a stop repaints the export live.
 
 import type { MatrixSize } from "@/lib/pattern/matrix";
+import { codeUsesValueField } from "@/lib/pattern/ramp";
 import { parseKnobsAnnotation } from "../annotations";
 import type { KnobRange, RampState } from "../types";
 
@@ -49,11 +50,60 @@ function describeKnobs(code: string, ranges: KnobRange[]): string {
     .join("\n");
 }
 
+/** What a pattern coloured through ramp() is told about it, in either case below. */
+function rampRules(ramp: RampState): string {
+  return `DO NOT bake the colours in and do not write your own gradient — ramp() IS the Color Ramp panel, so the user goes on editing their colours with the shader running. For reference, it currently holds:
+${describeRamp(ramp)}
+ramp() clamps its input to 0..1 and returns straight RGBA, alpha included.`;
+}
+
+/**
+ * The COLOUR section. A value-field pattern is coloured by ramp(v). A pattern
+ * that draws RGB keeps its colours unless the layer has Recolor on: the lab
+ * then shows the ramp's colour at the luminance of each pixel the pattern
+ * draws (harness.ts renderFrame), and the twin has to do the same.
+ */
+function describeColour(code: string, ramp: RampState, recolor: boolean): string {
+  // The lab's own detector, which skips comments and strings. A bare
+  // /setValue\s*\(/ took "// display.setValue(x, y, v)" in an RGB pattern for
+  // a value field and sent its colours through ramp().
+  if (codeUsesValueField(code)) {
+    // Recolor is not read here, as in cppPrompt.ts: the ramp already is this
+    // pattern's colour. The preview still runs its recolor pass over the layer
+    // (harness.ts renderFrame), so with Recolor on a value-field twin shows
+    // ramp(v) where the preview shows the ramp at the luminance of ramp(v).
+    return `The JS draws with display.setValue(x, y, v) — a 0..1 value field the runtime colours through the layer's ramp. Do the same: write \`fragColor = ramp(v);\` wherever the JS calls setValue(x, y, v). ${rampRules(ramp)}`;
+  }
+  if (recolor) {
+    return `The JS draws with display.setPixel(x, y, r, g, b) in 0..255 sRGB, and the layer has Recolor on: the lab replaces the colour of every pixel the JS draws with the ramp's colour at that pixel's luminance. Do the same. Compute the pattern's own colour exactly as the JS does, then write the ramp's colour at its luminance:
+  vec3 c = clamp(vec3(r, g, b) / 255.0, 0.0, 1.0);          // the JS colour, clamped as setPixel clamps it
+  fragColor = ramp(dot(c, vec3(0.2126, 0.7152, 0.0722)));   // Rec. 709 luma of that colour, 0..1
+Every pixel the JS draws goes out through ramp(), never as its raw colour. A pixel the JS draws black is ramp(0.0), whatever the ramp holds there. A pixel the JS never draws stays unlit: write fragColor = vec4(0.0) for it and keep it out of ramp(). ${rampRules(ramp)}`;
+  }
+  return "The JS draws with display.setPixel(x, y, r, g, b) in 0..255 sRGB. Divide by 255 and keep the same colours. (A ramp(float v) helper exists but this pattern does not use one.)";
+}
+
+// The stage hands the entry points gl_FragCoord.xy (shaderSource.ts) and the
+// painter draws the GL canvas as it is (paint.ts paintCanvas), so fragCoord.y
+// counts up from the bottom row while the pattern's y counts down from the
+// top. In Chrome 157 on 22 November 2026, an 8 × 4 render with red set to
+// fragCoord.y / uResolution.y came out 223 on the top row and 32 on the
+// bottom. A model that is not told ports an asymmetric pattern mirrored top to
+// bottom. The state texture is addressed by the same bottom-up fragCoord, so
+// stateAt and stateOffset keep it and only a vertical delta changes sign
+// (FEEDBACK, below).
+const ORIENTATION = `ORIENTATION
+fragCoord is gl_FragCoord.xy, the pixel centre measured from the BOTTOM-left corner, so fragCoord.y grows upward. The JS pattern's y grows downward from the top-left corner. The JS row y corresponds to uResolution.y - fragCoord.y. Flip once, first thing in each entry point:
+  vec2 p = vec2(fragCoord.x, uResolution.y - fragCoord.y);
+Take every picture coordinate from p: where a section below derives one from fragCoord, derive it from p. A shader that skips the flip draws the picture mirrored top to bottom. stateAt() and stateOffset() are the exception and keep the fragCoord the entry point was handed (see FEEDBACK).`;
+
+/** `recolor` is the code layer's Recolor toggle (`layer.recolor`). */
 export function buildShaderPrompt(
   code: string,
   matrix: MatrixSize,
   ramp: RampState,
   ranges: KnobRange[],
+  recolor = false,
 ): string {
   const { width, height } = matrix;
   return `You are porting ONE JavaScript LED pattern to a GLSL fragment shader. The JavaScript keeps running the LED panel; the shader is a second, output-only expression of the same composition, used to render stills and clips at print and screen sizes (1024×512 up to 4096 px a side) where the JS version is far too slow and, if it carries a simulation grid, too coarse.
@@ -78,18 +128,14 @@ Uniforms and helpers, always available:
   vec4 stateOffset(vec2 fragCoord, vec2 delta);    // a neighbour, delta in pixels
   vec4 ramp(float v);                              // the layer's live colour ramp, 0..1 in
 
+${ORIENTATION}
+
 KNOBS — same names, same real values the JS pattern reads from input.knobValues:
 ${describeKnobs(code, ranges)}
 uKnob is the knob VALUE, not a normalised slider: use it exactly where the JS uses knobValues[i]. Buttons map 1:1 with input.btnPressed[i] / input.btnHeld[i]: uBtnPressed.x > 0.5 is "button 1 was pressed this frame".
 
 COLOUR
-${
-    /setValue\s*\(/.test(code)
-      ? `The JS draws with display.setValue(x, y, v) — a 0..1 value field the runtime colours through the layer's ramp. Do the same: write \`fragColor = ramp(v);\` wherever the JS calls setValue(x, y, v). DO NOT bake the colours in and do not write your own gradient — ramp() IS the Color Ramp panel, so the user goes on editing their colours with the shader running. For reference, it currently holds:
-${describeRamp(ramp)}
-ramp() clamps its input to 0..1 and returns straight RGBA, alpha included.`
-      : "The JS draws with display.setPixel(x, y, r, g, b) in 0..255 sRGB. Divide by 255 and keep the same colours. (A ramp(float v) helper exists but this pattern does not use one.)"
-  }
+${describeColour(code, ramp, recolor)}
 
 RESOLUTION IS THE WHOLE POINT
 The composition must look like the ${width}×${height} original and gain REAL detail as uResolution grows — never more repetitions, never a crop, never the same picture in bigger blocks.
@@ -106,6 +152,7 @@ If the pattern integrates a field (reaction–diffusion, cellular automata, flui
     float h = max(1.0, floor(min(uResolution.x / ${width}.0, uResolution.y / ${height}.0)));
   With h = 1 at the original size this is the JS lattice exactly; at 4K it keeps the structures the same size in the frame instead of shrinking them to ${width}ths of it.
 - Use a 9-tap Laplacian at that spacing (edges 0.2, corners 0.05, centre −1) rather than a 5-tap: a wide stencil with only four taps aliases into grid-scale noise.
+- stateAt() and stateOffset() read the state where mainState wrote it, so hand them the entry point's own fragCoord, never the flipped p. A vertical delta counts bottom-up like fragCoord.y: the JS row y + 1, one row DOWN the picture, is stateOffset(fragCoord, vec2(0.0, -h)). A horizontal delta keeps its sign. Anything mainState places in the frame, the seed included, is placed with p.
 - Keep the same time step and coefficients the JS uses, and keep every clamp and non-finite guard it has — a shader that diverges goes to NaN and stays black.
 - mainImage then reads stateAt(fragCoord) and colours it. It must not integrate anything itself.
 
