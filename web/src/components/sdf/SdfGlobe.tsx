@@ -41,7 +41,7 @@ export default function SdfGlobe() {
     <div className={styles.globeWrap}>
       <div className={styles.globeStage}>
         <Globe
-          builds={orderedBuilds}
+          entries={orderedBuilds}
           selectedBuildId={selectedId}
           onSelectBuild={(id) => {
             setSelectedId(id);
@@ -120,9 +120,8 @@ export default function SdfGlobe() {
         <PhotoLightbox
           images={selected.images}
           index={lightboxIdx}
-          title={selected.title}
           onClose={() => setLightboxIdx(null)}
-          onStep={(next) => setLightboxIdx(next)}
+          onIndexChange={(next) => setLightboxIdx(next)}
         />
       )}
     </div>
