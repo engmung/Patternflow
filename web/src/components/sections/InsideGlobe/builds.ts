@@ -651,6 +651,24 @@ export const builds: Build[] = [
       'Patternflow sent to RELE in Naples, who take it on as a media partner. It has just arrived, and what it will light up is still to come.',
     links: [{ href: 'https://www.instagram.com/rele_connect/', label: 'RELE on Instagram' }],
   },
+  {
+    id: 'switzerland-philill',
+    title: 'One for each kid',
+    category: 'builds',
+    slug: 'philill-switzerland',
+    kind: 'build',
+    location: { lat: 46.8182, lng: 8.2275, label: 'Switzerland' },
+    maker: 'philill',
+    date: '2026-11',
+    description:
+      'Built on a rainy day with two kids and their uncle, as a first soldering project. The three boards came from xponentone: one was lost to encoders soldered on the wrong side, and the other two became one Patternflow for each kid. Both kids play Tetris and Pong on theirs.',
+    images: [
+      { src: '/builds/philill/baubles.jpg', alt: "philill's white Patternflow with black knobs, three pixel-art Christmas baubles on the panel" },
+      { src: '/builds/philill/tetris.jpg', alt: 'A white Patternflow seen from above, a game of Tetris on the panel' },
+      { src: '/builds/philill/soldering.jpg', alt: 'A kid soldering one of the boards at the table, the build guide open on a laptop behind' },
+      { src: '/builds/philill/table.jpg', alt: 'A Patternflow standing on its side on a dining table, a pixel-art platform game on the panel and a power bank in front of it' },
+    ],
+  },
 ];
 
 // One order for the text list and the globe's previous/next controls.
