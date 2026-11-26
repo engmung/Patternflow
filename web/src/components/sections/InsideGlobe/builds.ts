@@ -653,7 +653,7 @@ export const builds: Build[] = [
   },
   {
     id: 'switzerland-philill',
-    title: 'One for each kid',
+    title: 'Built with the kids',
     category: 'builds',
     slug: 'philill-switzerland',
     kind: 'build',
