@@ -78,6 +78,10 @@
   text-decoration: none;
 }
 
+.wordmark:hover {
+  text-decoration: none;
+}
+
 .openingDate {
   font-family: var(--mono);
   font-size: 11px;
@@ -131,16 +135,6 @@
   gap: 12px 32px;
 }
 
-.displayEn {
-  margin: 0;
-  font-family: var(--serif);
-  font-style: italic;
-  font-weight: 400;
-  font-size: clamp(18px, 2.2vw, 26px);
-  line-height: 1.25;
-  color: rgba(244, 239, 230, 0.8);
-}
-
 .openingEmail {
   pointer-events: auto;
   font-family: var(--mono);
@@ -149,6 +143,10 @@
   text-decoration: none;
   border-bottom: 1px solid rgba(244, 239, 230, 0.55);
   padding-bottom: 3px;
+}
+
+.openingEmail:hover {
+  text-decoration: none;
 }
 
 /* ── Archival paper body ─────────────────────────────────────────────────── */
@@ -195,14 +193,6 @@
   text-wrap: pretty;
 }
 
-.introEn {
-  margin: 0;
-  font-family: var(--serif);
-  font-size: clamp(15.5px, 1.4vw, 18.5px);
-  line-height: 1.58;
-  color: var(--ink-soft);
-}
-
 /* ── Numbers ─────────────────────────────────────────────────────────────── */
 
 .ledger {
@@ -236,12 +226,6 @@
   word-break: keep-all;
 }
 
-.ledgerEn {
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--ink-muted);
-}
-
 .ledgerLink {
   color: inherit;
   text-decoration: none;
@@ -252,6 +236,7 @@
 .ledgerLink:hover {
   color: var(--crimson);
   border-color: var(--crimson);
+  text-decoration: none;
 }
 
 /* ── Sections ────────────────────────────────────────────────────────────── */
@@ -320,14 +305,6 @@
   color: var(--ink);
 }
 
-.practiceTitleEn {
-  margin: 3px 0 0;
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 15.5px;
-  color: var(--ink-muted);
-}
-
 .practiceDesc {
   display: flex;
   flex-direction: column;
@@ -341,13 +318,6 @@
   color: var(--ink);
   word-break: keep-all;
   text-wrap: pretty;
-}
-
-.practiceEn {
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.6;
-  color: var(--ink-soft);
 }
 
 .casePhotos {
@@ -454,6 +424,7 @@
 .contactSubLink:hover {
   color: var(--ink);
   border-color: var(--ink);
+  text-decoration: none;
 }
 
 /* ── Extended Forms (footer visual grid) ─────────────────────────────────── */
@@ -605,13 +576,6 @@
 
 /* ── Contact ─────────────────────────────────────────────────────────────── */
 
-.contact {
-  display: grid;
-  grid-template-columns: minmax(120px, 200px) minmax(0, 1fr);
-  gap: 16px clamp(24px, 5vw, 64px);
-  padding-top: clamp(44px, 6.5vh, 76px);
-}
-
 .contactInner {
   display: flex;
   flex-direction: column;
@@ -634,23 +598,7 @@
 .emailLink:hover {
   color: var(--crimson);
   border-color: var(--crimson);
-}
-
-.copyBtn {
-  background: transparent;
-  border: 1px solid var(--rule-dark);
-  padding: 10px 16px;
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  color: var(--ink);
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.copyBtn:hover {
-  background: var(--ink);
-  color: var(--paper);
+  text-decoration: none;
 }
 
 .blockNoBorder {
@@ -775,26 +723,14 @@
     gap: 10px;
   }
 
-  .displayEn {
-    font-size: 16px;
-  }
-
   .introKo {
     font-size: 16.5px;
     line-height: 1.65;
   }
 
-  .introEn {
-    font-size: 14.5px;
-  }
-
   .practiceKo {
     font-size: 14.5px;
     line-height: 1.72;
-  }
-
-  .practiceEn {
-    font-size: 13px;
   }
 
   .sheet {
@@ -804,10 +740,6 @@
   .intro,
   .block,
   .blockNoBorder,
-  .contact {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
 
   .blockNoBorder {
     padding: 36px 0 0;
@@ -837,10 +769,6 @@
 
   .ledgerKo {
     font-size: 13px;
-  }
-
-  .ledgerEn {
-    font-size: 11.5px;
   }
 
   .formsBand {
@@ -876,19 +804,10 @@
     height: 310px;
   }
 
-  .contact {
-    padding-top: 40px;
-  }
-
   .emailLink {
     font-size: clamp(20px, 5.6vw, 28px);
     white-space: nowrap;
     word-break: normal;
   }
 
-  .copyBtn {
-    width: 100%;
-    text-align: center;
-    padding: 12px 16px;
-  }
 }
