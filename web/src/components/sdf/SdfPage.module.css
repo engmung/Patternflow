@@ -739,7 +739,10 @@
 
   .intro,
   .block,
-  .blockNoBorder,
+  .blockNoBorder {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
 
   .blockNoBorder {
     padding: 36px 0 0;
